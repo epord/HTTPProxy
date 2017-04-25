@@ -22,15 +22,14 @@ public class ServerHandler {
         serverSocket.register(key.selector(), SelectionKey.OP_READ);
     }
 
-    public void handleRead(SelectionKey key) throws IOException {
-        SocketChannel keySocket = (SocketChannel) key.channel();
+    public RequestContent handleRead(SocketChannel keySocket, ConnectionState state) throws IOException {
         ByteBuffer buf = ByteBuffer.allocate(bufSize);
-
         long bytesRead = keySocket.read(buf);
         if (bytesRead == -1) { // Did the other end close?
             keySocket.close();
+            return null;
         } else if (bytesRead > 0) {
-            RequestContent requestContent = processRequest(buf);
+           return processRequest(buf,state);
             switch (requestContent.getType()) {
                 case GET:
                 System.out.println("Read:\n" + new String(buf.array()));
@@ -51,7 +50,7 @@ public class ServerHandler {
         }
     }
 
-    public void handleWrite(SelectionKey key) throws IOException {
+    public void handleWrite(SocketChannel keySocket,ConnectionState state) throws IOException {
         SocketContainer socketContainer = (SocketContainer) key.attachment();
         ByteBuffer buf = socketContainer.getBuffer();
         SocketChannel socketToWrite = (SocketChannel) key.channel();
@@ -64,8 +63,8 @@ public class ServerHandler {
         }
     }
 
-    private static RequestContent processRequest(ByteBuffer buffer) {
+    private static RequestContent processRequest(ByteBuffer buffer,ConnectionState state) {
         SimpleParser simpleParser = new SimpleParser();
-        return simpleParser.parse(buffer);
+        return simpleParser.parse(buffer,state);
     }
 }
