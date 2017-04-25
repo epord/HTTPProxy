@@ -18,6 +18,7 @@ public class ServerHandler {
 
 
     public static RequestContent handleRead(SocketChannel keySocket, ConnectionState state, ByteBuffer buf) throws IOException {
+        buf.clear();
         long bytesRead = keySocket.read(buf);
         if (bytesRead <=0 ) { // Did the other end close?
             keySocket.close();

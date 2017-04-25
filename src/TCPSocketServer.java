@@ -2,7 +2,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import java.security.Key;
 import java.util.Iterator;
 
 /**
@@ -21,7 +20,7 @@ public class TCPSocketServer {
         SelectionKey key;
     }
     private enum State {
-        CONECTING {
+        CONNECTING {
             public void attend(KeyData data) {
                 try {
                     SocketChannel serverSocket = ((ServerSocketChannel) data.key.channel()).accept();
@@ -57,12 +56,12 @@ public class TCPSocketServer {
                         return;
                     }
 
-                    data.key.cancel();
                     data.state = SENDINGREQUEST;
                     data.serverChannel = SocketChannel.open();
                     data.serverChannel.connect(new InetSocketAddress(data.content.getHost(), data.content.getPort()));
                     data.serverChannel.configureBlocking(false);
                     data.serverChannel.register(data.key.selector(), SelectionKey.OP_WRITE, data);
+//                    data.key.cancel();
                 } catch (CancelledKeyException e) {
                     System.out.println("Key was closed");
                     e.printStackTrace();
@@ -76,7 +75,7 @@ public class TCPSocketServer {
             public void attend(KeyData data) {
                 try {
                     if(!data.key.isWritable()) {
-                        throw new IllegalStateException("WAS LISTENING A NON READABLE KEY");
+                        throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
                     }
 
                     ServerHandler.handleWrite(
@@ -85,9 +84,11 @@ public class TCPSocketServer {
                             data.state.connectionState(),
                             data.buffer);
 
-                    data.key.cancel();
+                    System.out.println("SENDING REQUEST:\n" + new String(data.buffer.array()));
+
                     data.state = LISTENINGRESPONSE;
-                    data.userChannel.register(data.key.selector(), SelectionKey.OP_READ, data);
+                    data.serverChannel.register(data.key.selector(), SelectionKey.OP_READ, data);
+//                    data.key.cancel();
                 } catch (CancelledKeyException e) {
                     System.out.println("Key was closed");
                     e.printStackTrace();
@@ -109,7 +110,7 @@ public class TCPSocketServer {
                             data.state.connectionState(),
                             data.buffer);
 
-                    data.key.cancel();
+                    //data.key.cancel();
                     data.state = SENDINGRESPONSE;
                     data.userChannel.register(data.key.selector(), SelectionKey.OP_WRITE, data);
                 } catch (CancelledKeyException e) {
@@ -125,7 +126,7 @@ public class TCPSocketServer {
             public void attend(KeyData data) {
                 try {
                     if(!data.key.isWritable()) {
-                        throw new IllegalStateException("WAS LISTENING A NON READABLE KEY");
+                        throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
                     }
 
                     ServerHandler.handleWrite(
@@ -134,7 +135,9 @@ public class TCPSocketServer {
                             data.state.connectionState(),
                             data.buffer);
 
-                    data.key.cancel();
+                    System.out.println("SENDING RESPONSE:\n" + new String(data.buffer.array()));
+
+                    //data.key.cancel();
                     data.userChannel.close();
                     data.serverChannel.close();
                     data.state = CLOSING;
@@ -154,7 +157,7 @@ public class TCPSocketServer {
             switch (this) {
                 case LISTENINGREQUEST:
                 case SENDINGREQUEST:
-                case CONECTING:
+                case CONNECTING:
                     return ConnectionState.REQUEST;
                 case LISTENINGRESPONSE:
                 case SENDINGRESPONSE:
@@ -202,7 +205,7 @@ public class TCPSocketServer {
                 if(key.isValid()) {
                     if (key.isAcceptable()) {
                         KeyData data = new KeyData();
-                        data.state = State.CONECTING;
+                        data.state = State.CONNECTING;
                         key.attach(data);
                     }
 

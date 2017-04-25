@@ -39,7 +39,7 @@ public class SimpleParser {
         }
 
         public RequestContent parse(ByteBuffer buffer, ConnectionState state) {
-            if(state== ConnectionState.REQUEST) {
+            if(state == ConnectionState.REQUEST) {
                 return parseRequest(buffer);
             } else {
                 return parseResponse(buffer);
@@ -172,7 +172,6 @@ public class SimpleParser {
             }
             i++;
         }
-
         return new RequestContent(MethodType.fromString(headers.get("METHOD")),headers.get("Host"),80,buffer);
     }
 
