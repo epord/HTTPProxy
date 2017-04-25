@@ -16,50 +16,22 @@ public class ServerHandler {
         this.bufSize = bufSize;
     }
 
-    public void handleAccept(SelectionKey key) throws IOException {
-        SocketChannel serverSocket = ((ServerSocketChannel) key.channel()).accept();
-        serverSocket.configureBlocking(false);
-        serverSocket.register(key.selector(), SelectionKey.OP_READ);
-    }
 
-    public RequestContent handleRead(SocketChannel keySocket, ConnectionState state) throws IOException {
-        ByteBuffer buf = ByteBuffer.allocate(bufSize);
+    public static RequestContent handleRead(SocketChannel keySocket, ConnectionState state, ByteBuffer buf) throws IOException {
         long bytesRead = keySocket.read(buf);
-        if (bytesRead == -1) { // Did the other end close?
+        if (bytesRead <=0 ) { // Did the other end close?
             keySocket.close();
             return null;
-        } else if (bytesRead > 0) {
+        } else  {
            return processRequest(buf,state);
-            switch (requestContent.getType()) {
-                case GET:
-                System.out.println("Read:\n" + new String(buf.array()));
-                    SocketChannel hostSocket = SocketChannel.open();
-                    hostSocket.connect(new InetSocketAddress(requestContent.getHost(), requestContent.getPort()));
-                    hostSocket.configureBlocking(false);
-                    hostSocket.register(key.selector(), SelectionKey.OP_WRITE, new SocketContainer(keySocket, buf));
-                    break;
-                case OTHER:
-                    // Write response to attachment socket
-                    SocketChannel socketToWrite = (SocketChannel) key.attachment();
-                    if (socketToWrite != null && socketToWrite.isOpen()) {
-                        socketToWrite.configureBlocking(false);
-                        socketToWrite.register(key.selector(), SelectionKey.OP_WRITE, new SocketContainer(keySocket, buf));
-                    }
-                    break;
-            }
         }
     }
 
-    public void handleWrite(SocketChannel keySocket,ConnectionState state) throws IOException {
-        SocketContainer socketContainer = (SocketContainer) key.attachment();
-        ByteBuffer buf = socketContainer.getBuffer();
-        SocketChannel socketToWrite = (SocketChannel) key.channel();
-        socketToWrite.configureBlocking(false);
-
-        if (socketToWrite.isOpen()) {
+    public static void handleWrite(RequestContent content, SocketChannel socket, ConnectionState state, ByteBuffer buf) throws IOException {
+        socket.configureBlocking(false);
+        if (socket.isOpen()) {
             buf.flip();
-            socketToWrite.write(buf);
-            socketToWrite.register(key.selector(), SelectionKey.OP_READ, socketContainer.getSocket());
+            socket.write(buf);
         }
     }
 
