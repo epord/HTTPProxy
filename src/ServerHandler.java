@@ -21,7 +21,6 @@ public class ServerHandler {
         buf.clear();
         long bytesRead = keySocket.read(buf);
         if (bytesRead <=0 ) { // Did the other end close?
-            keySocket.close();
             return null;
         } else  {
            return processRequest(buf,state);
