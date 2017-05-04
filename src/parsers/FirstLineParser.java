@@ -40,6 +40,7 @@ public class FirstLineParser {
             case errorState:
                 return MainState.errorState;
             case nextState:
+                machine.stateData = null;
                 return MainState.headers;
             default:
                 return MainState.firstLine;

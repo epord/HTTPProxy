@@ -4,6 +4,7 @@ import protos.ConnectionState;
 import protos.RequestContent;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -69,17 +70,16 @@ public class MainParser {
     private RequestContent parseRequest(ByteBuffer buffer) {
         StateMachine machine = new StateMachine(buffer);
 
-        while(machine.state!=MainState.body && machine.state != MainState.errorState) {
+        while(machine.state!=MainState.body && machine.error == null) {
             if(machine.bytes.hasRemaining()) {
                 machine.state.transition(machine);
                 machine.read ++;
             } else if (machine.state != MainState.body){
-                machine.state = MainState.errorState;
                 machine.error = MainError.IncompleteData;
             }
         }
 
-        return new RequestContent(machine.content.method,machine.content.uri,80,buffer);
+        return new RequestContent(machine.content.method,machine.headers.get("host"),80,buffer);
     }
 
         private enum DeprecatedState {
@@ -96,66 +96,74 @@ public class MainParser {
 
     private RequestContent parseResponse(ByteBuffer buffer) {
         byte[] reBytes=buffer.array();
-        int i = 0;
-        DeprecatedState state = DeprecatedState.response;
-        Map<String,String> headers=new HashMap<>();
         StringBuffer str = new StringBuffer();
-        String lastHeader="";
-        while(state!= DeprecatedState.done){
-            switch (reBytes[i]) {
-                case '\r':
-                    if(reBytes[i+1]=='\n') {
-                        if(state== DeprecatedState.newLine){
-                            state= DeprecatedState.done;
-                        } else {
-                            if(state== DeprecatedState.version) {
-                                headers.put("VERSION", str.toString());
-                                str = new StringBuffer();
-                            }
-                            state = DeprecatedState.newLine;
-                            headers.put(lastHeader,str.toString());
-                            lastHeader="";
-                        }
-                        i++;
-                    }
-                    break;
-                case ':':
-                    if(state== DeprecatedState.header){
-                        lastHeader = str.toString();
-                        str = new StringBuffer();
-                        state= DeprecatedState.text;
-                        if(reBytes[++i]!=' ') {
-                            str.append((char)reBytes[i]);
-                        }
-                    }
-                    break;
-                case ' ':
-                    if(state== DeprecatedState.request) {
-                        headers.put("METHOD",str.toString());
-                        state = DeprecatedState.URI;
-                        str = new StringBuffer();
-                    } else if(state== DeprecatedState.URI){
-                        headers.put("URL",str.toString());
-                        state = DeprecatedState.version;
-                        str = new StringBuffer();
-                    } else if(state== DeprecatedState.version){
-                        headers.put("VERSION",str.toString());
-                        state = DeprecatedState.version;
-                        str = new StringBuffer();
-                    } else if(state== DeprecatedState.text) {
-                        str.append((char)reBytes[i]);
-                    }
-                    break;
-                default:
-                    if(state== DeprecatedState.newLine) {
-                        state= DeprecatedState.header;
-                        str = new StringBuffer();
-                    }
-                    str.append((char)reBytes[i]);
-            }
-            i++;
+        for (byte c: buffer.array() ) {
+            str.append((char)c);
+
         }
+        System.out.println(str.toString());
         return new RequestContent(null,null,80,buffer);
+
+//        int i = 0;
+//        DeprecatedState state = DeprecatedState.response;
+//        Map<String,String> headers=new HashMap<>();
+//        StringBuffer str = new StringBuffer();
+//        String lastHeader="";
+//        while(state!= DeprecatedState.done){
+//            switch (reBytes[i]) {
+//                case '\r':
+//                    if(reBytes[i+1]=='\n') {
+//                        if(state== DeprecatedState.newLine){
+//                            state= DeprecatedState.done;
+//                        } else {
+//                            if(state== DeprecatedState.version) {
+//                                headers.put("VERSION", str.toString());
+//                                str = new StringBuffer();
+//                            }
+//                            state = DeprecatedState.newLine;
+//                            headers.put(lastHeader,str.toString());
+//                            lastHeader="";
+//                        }
+//                        i++;
+//                    }
+//                    break;
+//                case ':':
+//                    if(state== DeprecatedState.header){
+//                        lastHeader = str.toString();
+//                        str = new StringBuffer();
+//                        state= DeprecatedState.text;
+//                        if(reBytes[++i]!=' ') {
+//                            str.append((char)reBytes[i]);
+//                        }
+//                    }
+//                    break;
+//                case ' ':
+//                    if(state== DeprecatedState.request) {
+//                        headers.put("METHOD",str.toString());
+//                        state = DeprecatedState.URI;
+//                        str = new StringBuffer();
+//                    } else if(state== DeprecatedState.URI){
+//                        headers.put("URL",str.toString());
+//                        state = DeprecatedState.version;
+//                        str = new StringBuffer();
+//                    } else if(state== DeprecatedState.version){
+//                        headers.put("VERSION",str.toString());
+//                        state = DeprecatedState.version;
+//                        str = new StringBuffer();
+//                    } else if(state== DeprecatedState.text) {
+//                        str.append((char)reBytes[i]);
+//                    }
+//                    break;
+//                default:
+//                    if(state== DeprecatedState.newLine) {
+//                        state= DeprecatedState.header;
+//                        str = new StringBuffer();
+//                    }
+//                    str.append((char)reBytes[i]);
+//            }
+//            i++;
+//        }
+//        return new RequestContent(null,null,80,buffer);
     }
 
 

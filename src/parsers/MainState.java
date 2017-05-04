@@ -6,17 +6,17 @@ package parsers;
 public enum MainState implements Transitioner<MainState> {
     firstLine {
         public MainState transition(StateMachine machine) {
-            return FirstLineParser.instance.transition(machine);
+            return setState(machine,FirstLineParser.instance.transition(machine));
         }
     },
     headers {
         public MainState transition(StateMachine machine) {
-            return HeaderParser.instance.transition(machine);
+            return setState(machine,HeaderParser.instance.transition(machine));
         }
     },
     body {
         public MainState transition(StateMachine machine) {
-            return done;
+            return setState(machine,done);
         }
     },
     errorState,
@@ -24,7 +24,8 @@ public enum MainState implements Transitioner<MainState> {
 
     static MainState setError(StateMachine machine, MainError error){
         machine.error = error;
-        return setState(machine,errorState);
+        return machine.state;
+//        return setState(machine,errorState);
     }
 
     static MainState setState(StateMachine machine, MainState state){

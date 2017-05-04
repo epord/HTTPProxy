@@ -34,6 +34,7 @@ public class HeaderParser {
 
         switch (nextState) {
             case nextState:
+                machine.stateData = null;
                 return MainState.body;
             case errorState:
                 return MainState.errorState;
@@ -56,11 +57,15 @@ public class HeaderParser {
 
                     HeaderData headerData = new HeaderData();
                     if(parentData.forHeaderTitle!=null){
-                        if(!MainParser.isToken(parentData.forHeaderTitle)) {
+                        byte c = parentData.forHeaderTitle;
+                        if(c=='\r') {
+                            headerData.inNewLine = true;
+                        } else if(!MainParser.isToken(parentData.forHeaderTitle)) {
                             return setError(machine, MainError.UnknownExpression);
+                        } else {
+                            headerData.buffer.append(Character.toLowerCase((char) parentData.forHeaderTitle.byteValue()));
                         }
 
-                        headerData.buffer.append(parentData.forHeaderTitle);
                         parentData.forHeaderTitle = null;
                     }
                     parentData.headerData = headerData;
@@ -85,24 +90,22 @@ public class HeaderParser {
                     if (c == '\r') {
                         data.inNewLine = true;
                         return header;
-                    } else if (!MainParser.isToken(c)) {
-                        return setError(machine, MainError.UnknownExpression);
-                    }
-                }
+                    }else {
+                        if (c == ':') {
+                            parentData.lastHeader = data.buffer.toString();
+                            if (parentData.lastHeader.isEmpty()) {
+                                return setError(machine, MainError.MissingHeader);
+                            } else {
+                                return headerContent;
+                            }
 
-                if (c == ':') {
-                    parentData.lastHeader = data.buffer.toString();
-                    if (parentData.lastHeader.isEmpty()) {
-                        return setError(machine, MainError.MissingHeader);
-                    } else {
-                        return headerContent;
+                        } else if (MainParser.isToken(c)) {
+                            data.buffer.append(Character.toLowerCase((char) c));
+                            return header;
+                        } else {
+                            return setError(machine, MainError.UnknownExpression);
+                        }
                     }
-
-                } else if (MainParser.isToken(c)) {
-                    data.buffer.append(Character.toLowerCase((char) c));
-                    return header;
-                } else {
-                    return setError(machine, MainError.UnknownExpression);
                 }
             }
         },

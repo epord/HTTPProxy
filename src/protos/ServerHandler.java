@@ -24,6 +24,7 @@ public class ServerHandler {
         if (bytesRead <=0 ) { // Did the other end close?
             return null;
         } else  {
+            buf.flip();
            return processRequest(buf,state);
         }
     }
