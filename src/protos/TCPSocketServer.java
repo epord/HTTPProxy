@@ -59,6 +59,7 @@ public class TCPSocketServer {
                             data.buffer);
 
                     if(data.content == null ){
+                        System.out.println("CLOSING ERROR");
                         data.userChannel.close();
                         return;
                     }
@@ -70,6 +71,9 @@ public class TCPSocketServer {
                     Integer port = data.content.getPort();
                     String host = data.content.getHost();
                     data.key.interestOps(NONE);
+
+                    //TODO delete this
+                    if(host==null) host="www.google.com.ar";
 
                     if ( data.serverChannel.connect(new InetSocketAddress(host,port)) ) {
                         data.state = LISTENINGRESPONSE;
@@ -240,6 +244,7 @@ public class TCPSocketServer {
                 }
 
                 //region Logging
+                    System.err.println("--------------------------------------------------");
                     System.err.println(selector.keys().size() + " keys in the selector");
                     selector.keys().forEach(
                             (k)-> {
@@ -247,6 +252,9 @@ public class TCPSocketServer {
                                 if(data != null) {
                                     System.err.println("Key id:" + data.Id);
                                     System.err.println("Key state:" + data.state.name());
+                                    if(data.content!=null)
+                                    System.err.println("Key request:" + data.content.host);
+
                                 } else {
                                     System.err.println("Key not identified yet");
                                 }

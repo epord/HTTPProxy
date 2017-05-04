@@ -19,12 +19,11 @@ public class ServerHandler {
 
 
     public static RequestContent handleRead(SocketChannel keySocket, ConnectionState state, ByteBuffer buf) throws IOException {
-        buf.clear();
-        long bytesRead = keySocket.read(buf);
+        int bytesRead = keySocket.read(buf);
         if (bytesRead <=0 ) { // Did the other end close?
             return null;
         } else  {
-            buf.flip();
+            buf.position(buf.position() - bytesRead);
            return processRequest(buf,state);
         }
     }
@@ -34,6 +33,8 @@ public class ServerHandler {
         if (socket.isOpen()) {
             buf.flip();
             socket.write(buf);
+            //TODO check if eveything has been written
+            buf.clear();
         }
     }
 
