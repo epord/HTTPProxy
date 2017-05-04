@@ -1,8 +1,9 @@
+package protos;
+
+import parsers.MainParser;
+
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 
 /**
@@ -36,7 +37,7 @@ public class ServerHandler {
     }
 
     private static RequestContent processRequest(ByteBuffer buffer,ConnectionState state) {
-        SimpleParser simpleParser = new SimpleParser();
+        MainParser simpleParser = new MainParser();
         return simpleParser.parse(buffer,state);
     }
 }

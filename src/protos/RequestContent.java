@@ -1,3 +1,5 @@
+package protos;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -15,7 +17,7 @@ public class RequestContent {
         zero,
         one;
 
-        static HTTPVersion version(int v){
+        public static HTTPVersion version(int v){
             if(v==1) return one;
             if(v==0) return zero;
             return null;

@@ -1,3 +1,8 @@
+package parsers;
+
+import protos.ConnectionState;
+import protos.RequestContent;
+
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -6,9 +11,9 @@ import java.util.Map;
 /**
  * Created by epord on 20/04/17.
  */
-public class SimpleParser {
+public class MainParser {
 
-//    public RequestContent parse(ByteBuffer buffer) {
+//    public protos.RequestContent parse(ByteBuffer buffer) {
 //        StringBuilder builder = new StringBuilder();
 //        buffer.flip();
 //        while (buffer.hasRemaining()){
@@ -22,9 +27,9 @@ public class SimpleParser {
 //        if (method.toUpperCase().equals("GET")) {
 ////            String host = auxRequest[1].split(":")[0];
 ////            Integer port = Integer.parseInt(auxRequest[1].split(":")[1]);
-//            return new RequestContent(MethodType.GET, "www.lanacion.com.ar", 80, buffer.duplicate());
+//            return new protos.RequestContent(protos.MethodType.GET, "www.lanacion.com.ar", 80, buffer.duplicate());
 //        }
-//        return new RequestContent(MethodType.OTHER, buffer.duplicate());
+//        return new protos.RequestContent(protos.MethodType.OTHER, buffer.duplicate());
 //    }
 
     static private boolean[] isAlpha = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false };
@@ -53,251 +58,24 @@ public class SimpleParser {
         return isCLT[(int)c&0xFF];
     }
 
-        private enum ParserState {
-            OK,
-            ValidatingMethod {
-                int index = 0;
-                public ParserState transition(StateMachine machine) {
-                    byte c = machine.bytes.get();
-                    if(index == 0) {
-                        switch (c) {
-                            case 'G':
-                            case 'g':
-                                machine.content.method = MethodType.GET;
-                                break;
-                            case 'P':
-                            case 'p':
-                                machine.content.method = MethodType.POST;
-                                break;
-                            case 'H':
-                            case 'h':
-                                machine.content.method = MethodType.HEAD;
-                                break;
-                            default:
-                                return setError(machine,ParserError.UnsupportedMethod);
-                        }
-                        index++;
-                        return setState(machine, ValidatingMethod);
-                    } else {
-                        if(c == ' ') {
-                            if (machine.content.method.isFinished(index)) {
-                                return setState(machine,URI);
-                            } else {
-                                return setError(machine,ParserError.UnsupportedMethod);
-                            }
-                        }
-                        if(machine.content.method.isValid(index,c)) {
-                            index++;
-                            return setState(machine, ValidatingMethod);
-                        } else {
-                            return setError(machine,ParserError.UnsupportedMethod);
-                        }
-
-                    }
-                }
-            },
-            request,
-            URI {
-                public ParserState transition(StateMachine machine) {
-                    byte c = machine.bytes.get();
-                    if ( c == ' ') {
-                        machine.content.uri = machine.str.toString();
-                        machine.str = new StringBuilder();
-                        return setState(machine,version);
-                    } else if(isUri(c)){
-                        machine.str.append(Character.toLowerCase((char) c));
-                        return setState(machine,URI);
-                    } else {
-                        return setError(machine,(ParserError.UnknownExpression));
-                    }
-                }
-            },
-            version {
-                byte[] http={'H','T','T','P','/','1','.'};
-
-                public ParserState transition(StateMachine machine) {
-                    for (int i = 0; i < http.length; i++) {
-                        if (!machine.bytes.hasRemaining()) {
-                            return setError(machine, ParserError.IncompleteData);
-                        }
-
-                        if (http[i] != machine.bytes.get()) {
-                            return setError(machine, ParserError.InvalidVersion);
-                        }
-                    }
-
-                    if (!machine.bytes.hasRemaining()) {
-                        return setError(machine, ParserError.IncompleteData);
-                    }
-
-                    byte v = (byte) (machine.bytes.get() - '0');
-
-                    if (v != 0 && v != 1) {
-                        return setError(machine, ParserError.InvalidVersion);
-
-                    } else {
-
-                        machine.content.version = RequestContent.HTTPVersion.version(v);
-                        if (validateRN(machine, true) == error) {
-                            return setError(machine, ParserError.InvalidRequestLine);
-                        } else {
-                            return setState(machine, header);
-                        }
-                    }
-                }
-
-                },
-            header {
-                public ParserState transition(StateMachine machine){
-                    if(validateRN(machine,false) == OK) {
-                        return setState(machine,body);
-                    }
-                    if(machine.state==error) { return error; }
-
-                    byte c = machine.bytes.get();
-                    if(c == ':') {
-                        machine.lastHeader = machine.str.toString();
-
-                        if(machine.lastHeader.isEmpty()) {
-                            return setError(machine,ParserError.MissingHeader);
-                        }
-
-                        machine.str = new StringBuilder();
-                        return setState(machine,headerContent);
-
-                    } else if (isToken(c)) {
-                        machine.str.append(Character.toLowerCase((char) c));
-                        return setState(machine,header);
-                    } else {
-                        return setError(machine,ParserError.UnknownExpression);
-                    }
-                }
-
-            },
-            headerContent {
-
-                public ParserState transition(StateMachine machine) {
-
-                    byte c = machine.bytes.get();
-                    while(c==' ') { c=machine.bytes.get(); }
-
-                    if(!isCLT(c)) {
-                        machine.str.append(Character.toLowerCase((char)c));
-                        return setState(machine,headerContent);
-                    } else if(c=='\r') {
-                        if(machine.bytes.get() == '\n') {
-                            //Space after enter
-                            if(machine.bytes.get(machine.bytes.position()) == ' ') {
-                                machine.str.append(' ');
-                                return setState(machine,headerContent);
-                            } else {
-                                //Enter new header
-                                machine.headers.put(machine.lastHeader,machine.str.toString());
-                                machine.str = new StringBuilder();
-                                return setState(machine,header);
-                            }
-                        } else {
-                            //Invalid /r/n
-                            return setError(machine,ParserError.UnknownExpression);
-                        }
-                    } else {
-                        return setError(machine,ParserError.InvalidHeaderContent);
-                    }
-                }
-            },
-            body{
-
-                public  ParserState transition(StateMachine machine) {
-                    return setState(machine,done);
-                }
-            },
-            done,
-            noNewLine,
-            error;
-
-            private static ParserState validateRN(StateMachine machine, boolean required){
-                byte c = machine.bytes.get(machine.bytes.position());
-                if(c =='\r') {
-                    machine.bytes.get();
-                    if(!machine.bytes.hasRemaining()) {
-                        return setError(machine, ParserError.IncompleteData);
-                    }
-
-                    c = machine.bytes.get();
-                    if(c=='\n') {
-                        return setState(machine,OK);
-                    } else {
-                        return ParserState.setError(machine,ParserError.UnknownExpression);
-                    }
-                } else if(required) {
-                    return ParserState.setError(machine, ParserError.UnknownExpression);
-                } else {
-                    return setState(machine,noNewLine);
-                }
-            }
-            static private ParserState setError(StateMachine machine, ParserError error){
-                machine.error = error;
-                machine.state = ParserState.error;
-                return ParserState.error;
-            }
-            static private ParserState setState(StateMachine machine, ParserState state){
-                machine.state = state;
-                return state;
-            }
-
-            public ParserState transition(StateMachine machine) {
-                return setError(machine,ParserError.InvalidState);
-            }
+    public RequestContent parse(ByteBuffer buffer, ConnectionState state) {
+        if (state == ConnectionState.REQUEST) {
+            return parseRequest(buffer);
+        } else {
+            return parseResponse(buffer);
         }
+    }
 
-        public enum ParserError {
-            UnsupportedMethod,
-            InvalidVersion,
-            IncompleteData,
-            UnknownExpression,
-            MissingHeader,
-            InvalidHeaderContent,
-            InvalidState,
-            InvalidRequestLine
-        }
-
-        private class StateMachine {
-            int index;
-            RequestContent content;
-            ParserError error;
-            ParserState state;
-            ByteBuffer bytes;
-            Map<String,String> headers;
-            int read;
-            StringBuilder str;
-            String lastHeader;
-        }
-
-        public RequestContent parse(ByteBuffer buffer, ConnectionState state) {
-            if(state == ConnectionState.REQUEST) {
-                return parseRequest(buffer);
-            } else {
-                return parseResponse(buffer);
-            }
-        }
-//
     private RequestContent parseRequest(ByteBuffer buffer) {
-        buffer.flip();
-        StateMachine machine = new StateMachine();
-        machine.state = ParserState.ValidatingMethod;
-        machine.bytes = buffer;
-        machine.index = buffer.position();
-        machine.str = new StringBuilder();
-        machine.content = new RequestContent();
-        machine.headers = new HashMap<>();
-        machine.read=0;
-        while(machine.state!=ParserState.body && machine.state != ParserState.error) {
+        StateMachine machine = new StateMachine(buffer);
+
+        while(machine.state!=MainState.body && machine.state != MainState.errorState) {
             if(machine.bytes.hasRemaining()) {
                 machine.state.transition(machine);
                 machine.read ++;
-            } else if (machine.state != ParserState.body){
-                machine.state = ParserState.error;
-                machine.error = ParserError.IncompleteData;
+            } else if (machine.state != MainState.body){
+                machine.state = MainState.errorState;
+                machine.error = MainError.IncompleteData;
             }
         }
 
@@ -377,7 +155,7 @@ public class SimpleParser {
             }
             i++;
         }
-        return new RequestContent(MethodType.fromString(headers.get("METHOD")),headers.get("Host"),80,buffer);
+        return new RequestContent(null,null,80,buffer);
     }
 
 
