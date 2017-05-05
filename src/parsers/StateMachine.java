@@ -26,7 +26,8 @@ public class StateMachine {
         state = MainState.firstLine;
         bytes = buffer;
         content = new RequestContent();
+        content.machine = this;
         headers = new HashMap<>();
-        read=0;
+        read = 0;
     }
 }

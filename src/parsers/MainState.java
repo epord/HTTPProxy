@@ -24,8 +24,7 @@ public enum MainState implements Transitioner<MainState> {
 
     static MainState setError(StateMachine machine, MainError error){
         machine.error = error;
-        return machine.state;
-//        return setState(machine,errorState);
+        return setState(machine,errorState);
     }
 
     static MainState setState(StateMachine machine, MainState state){

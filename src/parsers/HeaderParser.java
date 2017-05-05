@@ -1,5 +1,8 @@
 package parsers;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+
 /**
  * Created by juanfra on 03/05/17.
  */
@@ -41,7 +44,6 @@ public class HeaderParser {
             default:
                 return MainState.headers;
         }
-
     }
 
     public enum HeaderState implements Transitioner<HeaderState> {

@@ -68,8 +68,8 @@ public class TCPSocketServer {
                     data.serverChannel = SocketChannel.open();
                     data.serverChannel.configureBlocking(false);
 
-                    Integer port = data.content.getPort();
-                    String host = data.content.getHost();
+                    Integer port = data.content.port;
+                    String host = data.content.host;
                     data.key.interestOps(NONE);
 
                     //TODO delete this

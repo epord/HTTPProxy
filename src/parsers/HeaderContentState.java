@@ -7,7 +7,5 @@ public enum HeaderContentState {
     leadingSpaces,
     inText,
     inNewLine,
-    inNextLine,
-    nextState,
-    errorState;
+    inNextLine
 }

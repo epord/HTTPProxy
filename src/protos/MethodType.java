@@ -9,32 +9,29 @@ import java.util.Optional;
 public enum MethodType {
     GET("GET"), POST("POST"), HEAD("HEAD"), OTHER(null);
 
-    public boolean isValid(int index, byte c) {
-        if(nameArray.length <= index) return false;
-        return nameArray[index] == Character.toUpperCase((char)c);
-    }
-
-    public boolean isFinished(int index) {
-        return nameArray.length == index;
-    }
-
-    String s;
+    String name;
     private byte[] nameArray;
+
     MethodType(String s) {
-        this.s = s;
+        this.name = s;
         if(s!=null) {
             this.nameArray = s.getBytes();
         }
     }
+
     static MethodType fromString(String string) {
         if(string==null) return OTHER;
         Optional<MethodType> maybeMethod = Arrays.stream(MethodType.values()).
-                filter((m) -> m.s.equals(string)).findAny();
+                filter((m) -> m.name.equals(string)).findAny();
 
-        if(maybeMethod.isPresent()) {
-            return maybeMethod.get();
-        } else {
-            return null;
-        }
+        return maybeMethod.orElse(null);
     }
+
+    public boolean isValid(int index, byte c) {
+        return nameArray.length > index && nameArray[index] == Character.toUpperCase((char)c);
+    }
+    public boolean isFinished(int index) {
+        return nameArray.length == index;
+    }
+
 }

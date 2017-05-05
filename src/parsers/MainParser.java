@@ -14,25 +14,6 @@ import java.util.Map;
  */
 public class MainParser {
 
-//    public protos.RequestContent parse(ByteBuffer buffer) {
-//        StringBuilder builder = new StringBuilder();
-//        buffer.flip();
-//        while (buffer.hasRemaining()){
-//            builder.append((char) buffer.get());
-//        }
-//        String request = builder.toString().trim();
-////        System.out.println(request);
-//
-//        String[] auxRequest = request.split(" ");
-//        String method = auxRequest[0];
-//        if (method.toUpperCase().equals("GET")) {
-////            String host = auxRequest[1].split(":")[0];
-////            Integer port = Integer.parseInt(auxRequest[1].split(":")[1]);
-//            return new protos.RequestContent(protos.MethodType.GET, "www.lanacion.com.ar", 80, buffer.duplicate());
-//        }
-//        return new protos.RequestContent(protos.MethodType.OTHER, buffer.duplicate());
-//    }
-
     static private boolean[] isAlpha = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false };
     static private boolean[] isSeparator = {false, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, false, true, false, false, false, false, false, true, true, false, false, true, false, false, true, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false };
     static private boolean[] isUri = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, true, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, true, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false };
@@ -80,45 +61,31 @@ public class MainParser {
         }
 
         if(machine.error != null) {
+            System.out.println("ERROR ------------- at character" + machine.read);
             printBuffer(machine.bytes.array());
-            System.out.println("error");
-
+            System.out.println("END OF ERROR -------------");
         }
 
-        return new RequestContent(machine.content.method,machine.headers.get("host"),80,buffer);
+        machine.content.host = machine.headers.get("host");
+        machine.content.port = 80;
+        machine.content.body = buffer;
+
+        return machine.content;
     }
 
-        private enum DeprecatedState {
-            response,
-            newLine,
-            header,
-            text,
-            version,
-            request,
-            URI,
 
-            done
-        }
-
-        private void printBuffer(byte [] buffer){
+    private void printBuffer(byte [] buffer){
         StringBuffer str = new StringBuffer();
         for (byte c: buffer ) {
             str.append((char)c);
-
         }
         System.out.println(str.toString());
-        }
+    }
 
     private RequestContent parseResponse(ByteBuffer buffer) {
-        byte[] reBytes=buffer.array();
-//        StringBuffer str = new StringBuffer();
-//        for (byte c: buffer.array() ) {
-//            str.append((char)c);
-//
-//        }
-//        System.out.println(str.toString());
         buffer.position(buffer.limit());
-        return new RequestContent(null,null,80,buffer);
+        return new RequestContent(null, null, 80, buffer);
+    }
 
 //        int i = 0;
 //        DeprecatedState state = DeprecatedState.response;
@@ -180,7 +147,17 @@ public class MainParser {
 //            i++;
 //        }
 //        return new RequestContent(null,null,80,buffer);
-    }
+
+    //        private enum DeprecatedState {
+//            response,
+//            newLine,
+//            header,
+//            text,
+//            version,
+//            request,
+//            URI,
+//            done
+//        }
 
 
 
