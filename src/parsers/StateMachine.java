@@ -1,5 +1,6 @@
 package parsers;
 
+import protos.MethodType;
 import protos.RequestContent;
 
 import java.nio.ByteBuffer;
@@ -10,23 +11,23 @@ import java.util.Map;
  * Created by juanfra on 03/05/17.
  */
 public class StateMachine {
-    RequestContent content;
+    public MethodType method;
+    public String uri;
+    public RequestContent.HTTPVersion HTTPversion;
 
-    MainError error;
-    MainState state;
+    public MainError error;
+    public MainState state;
 
-    int read;
-    ByteBuffer bytes;
-    Map<String,String> headers;
+    public int read;
+    public ByteBuffer bytes;
+    public Map<String,String> headers;
 
     //EveryState must know what is in here
-    Object stateData;
+    public Object stateData;
 
     public StateMachine(ByteBuffer buffer) {
         state = MainState.firstLine;
         bytes = buffer;
-        content = new RequestContent();
-        content.machine = this;
         headers = new HashMap<>();
         read = 0;
     }

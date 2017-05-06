@@ -67,15 +67,15 @@ public class FirstLineParser {
                     switch (c) {
                         case 'G':
                         case 'g':
-                            machine.content.method = MethodType.GET;
+                            machine.method = MethodType.GET;
                             break;
                         case 'P':
                         case 'p':
-                            machine.content.method = MethodType.POST;
+                            machine.method = MethodType.POST;
                             break;
                         case 'H':
                         case 'h':
-                            machine.content.method = MethodType.HEAD;
+                            machine.method = MethodType.HEAD;
                             break;
                         default:
                             return setError(machine, MainError.UnsupportedMethod);
@@ -83,14 +83,14 @@ public class FirstLineParser {
                     return method;
                 } else {
                     if (c == ' ') {
-                        if (machine.content.method.isFinished(data.index)) {
+                        if (machine.method.isFinished(data.index)) {
                             return URI;
                         } else {
                             return setError(machine, MainError.UnsupportedMethod);
                         }
                     }
 
-                    if (machine.content.method.isValid(data.index, c)) {
+                    if (machine.method.isValid(data.index, c)) {
                         data.index++;
                         return method;
                     } else {
@@ -115,7 +115,7 @@ public class FirstLineParser {
 
                 byte c = machine.bytes.get();
                 if (c == ' ') {
-                    machine.content.uri = data.buffer.toString();
+                    machine.uri = data.buffer.toString();
                     return version;
                 } else if (MainParser.isUri(c)) {
                     data.buffer.append(Character.toLowerCase((char) c));
@@ -151,7 +151,7 @@ public class FirstLineParser {
                     if (v != 0 && v != 1) {
                         return setError(machine, MainError.InvalidVersion);
                     } else {
-                        machine.content.version = RequestContent.HTTPVersion.version(v);
+                        machine.HTTPversion = RequestContent.HTTPVersion.version(v);
                         return RN;
                     }
                 }

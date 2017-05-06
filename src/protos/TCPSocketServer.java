@@ -58,6 +58,7 @@ public class TCPSocketServer {
                             data.state.connectionState(),
                             data.buffer);
 
+
                     if(data.content == null ){
                         System.out.println("CLOSING ERROR");
                         data.userChannel.close();

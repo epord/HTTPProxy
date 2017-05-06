@@ -66,11 +66,12 @@ public class MainParser {
             System.out.println("END OF ERROR -------------");
         }
 
-        machine.content.host = machine.headers.get("host");
-        machine.content.port = 80;
-        machine.content.body = buffer;
-
-        return machine.content;
+        RequestContent content = new RequestContent();
+        content.host = machine.headers.get("host");
+        content.port = 80;
+        content.body = buffer;
+        content.machine = machine;
+        return content;
     }
 
 
