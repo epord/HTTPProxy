@@ -1,12 +1,7 @@
 package parsers;
 
+import protos.HTTPMessage;
 import protos.MethodType;
-import protos.RequestContent;
-import sun.applet.Main;
-
-import javax.swing.plaf.nimbus.State;
-
-import static com.sun.org.apache.xalan.internal.xsltc.compiler.sym.error;
 
 /**
  * Created by juanfra on 03/05/17.
@@ -151,7 +146,7 @@ public class FirstLineParser {
                     if (v != 0 && v != 1) {
                         return setError(machine, MainError.InvalidVersion);
                     } else {
-                        machine.HTTPversion = RequestContent.HTTPVersion.version(v);
+                        machine.HTTPversion = HTTPMessage.HTTPVersion.version(v);
                         return RN;
                     }
                 }

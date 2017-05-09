@@ -18,7 +18,7 @@ public class TCPSocketServer {
     private class KeyData {
         State state;
         ByteBuffer buffer;
-        RequestContent content;
+        HTTPMessage content;
         SocketChannel userChannel;
         SocketChannel serverChannel;
         SelectionKey key;
@@ -203,15 +203,15 @@ public class TCPSocketServer {
         CLOSING;
         public void attend(KeyData data) {}
 
-        ConnectionState connectionState() {
+        MessageType connectionState() {
             switch (this) {
                 case LISTENINGREQUEST:
                 case SENDINGREQUEST:
                 case CONNECTING:
-                    return ConnectionState.REQUEST;
+                    return MessageType.REQUEST;
                 case LISTENINGRESPONSE:
                 case SENDINGRESPONSE:
-                    return ConnectionState.RESPONSE;
+                    return MessageType.RESPONSE;
                 default:
                     return null;
             }

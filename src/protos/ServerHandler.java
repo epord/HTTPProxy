@@ -18,17 +18,17 @@ public class ServerHandler {
     }
 
 
-    public static RequestContent handleRead(SocketChannel keySocket, ConnectionState state, ByteBuffer buf) throws IOException {
+    public static HTTPMessage handleRead(SocketChannel keySocket, MessageType type, ByteBuffer buf) throws IOException {
         int bytesRead = keySocket.read(buf);
         if (bytesRead <=0 ) { // Did the other end close?
             return null;
         } else  {
             buf.position(buf.position() - bytesRead);
-           return processRequest(buf,state);
+           return processRequest(buf,type);
         }
     }
 
-    public static void handleWrite(RequestContent content, SocketChannel socket, ConnectionState state, ByteBuffer buf) throws IOException {
+    public static void handleWrite(HTTPMessage content, SocketChannel socket, MessageType type, ByteBuffer buf) throws IOException {
         socket.configureBlocking(false);
         if (socket.isOpen()) {
             buf.flip();
@@ -38,8 +38,8 @@ public class ServerHandler {
         }
     }
 
-    private static RequestContent processRequest(ByteBuffer buffer,ConnectionState state) {
+    private static HTTPMessage processRequest(ByteBuffer buffer, MessageType type) {
         MainParser simpleParser = new MainParser();
-        return simpleParser.parse(buffer,state);
+        return simpleParser.parse(buffer,type);
     }
 }

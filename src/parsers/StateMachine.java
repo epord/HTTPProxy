@@ -1,7 +1,7 @@
 package parsers;
 
 import protos.MethodType;
-import protos.RequestContent;
+import protos.HTTPMessage;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -13,7 +13,7 @@ import java.util.Map;
 public class StateMachine {
     public MethodType method;
     public String uri;
-    public RequestContent.HTTPVersion HTTPversion;
+    public HTTPMessage.HTTPVersion HTTPversion;
 
     public MainError error;
     public MainState state;

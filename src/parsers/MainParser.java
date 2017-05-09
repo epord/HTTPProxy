@@ -1,12 +1,9 @@
 package parsers;
 
-import protos.ConnectionState;
-import protos.RequestContent;
+import protos.MessageType;
+import protos.HTTPMessage;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 
 /**
@@ -40,15 +37,15 @@ public class MainParser {
         return isCLT[(int)c&0xFF];
     }
 
-    public RequestContent parse(ByteBuffer buffer, ConnectionState state) {
-        if (state == ConnectionState.REQUEST) {
+    public HTTPMessage parse(ByteBuffer buffer, MessageType type) {
+        if (type == MessageType.REQUEST) {
             return parseRequest(buffer);
         } else {
             return parseResponse(buffer);
         }
     }
 
-    private RequestContent parseRequest(ByteBuffer buffer) {
+    private HTTPMessage parseRequest(ByteBuffer buffer) {
         StateMachine machine = new StateMachine(buffer);
 
         while(machine.state!=MainState.body && machine.error == null) {
@@ -66,7 +63,8 @@ public class MainParser {
             System.out.println("END OF ERROR -------------");
         }
 
-        RequestContent content = new RequestContent();
+        HTTPMessage content = new HTTPMessage();
+        content.type = MessageType.REQUEST;
         content.host = machine.headers.get("host");
         content.port = 80;
         content.body = buffer;
@@ -83,9 +81,9 @@ public class MainParser {
         System.out.println(str.toString());
     }
 
-    private RequestContent parseResponse(ByteBuffer buffer) {
+    private HTTPMessage parseResponse(ByteBuffer buffer) {
         buffer.position(buffer.limit());
-        return new RequestContent(null, null, 80, buffer);
+        return new HTTPMessage(MessageType.RESPONSE,null, null, 80, buffer);
     }
 
 //        int i = 0;
@@ -147,7 +145,7 @@ public class MainParser {
 //            }
 //            i++;
 //        }
-//        return new RequestContent(null,null,80,buffer);
+//        return new HTTPMessage(null,null,80,buffer);
 
     //        private enum DeprecatedState {
 //            response,

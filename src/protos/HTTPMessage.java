@@ -7,7 +7,8 @@ import java.nio.ByteBuffer;
 /**
  * Created by epord on 20/04/17.
  */
-public class RequestContent {
+public class HTTPMessage {
+	public MessageType type;
     public MethodType method;
     public String host;
     public Integer port;
@@ -27,9 +28,10 @@ public class RequestContent {
         }
     }
 
-    public RequestContent(){}
+    public HTTPMessage(){}
 
-    public RequestContent(MethodType method, String host, Integer port, ByteBuffer body) {
+    public HTTPMessage(MessageType type, MethodType method, String host, Integer port, ByteBuffer body) {
+    	this.type = type;
         this.method = method;
         this.host = host;
         this.port = port;
