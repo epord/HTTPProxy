@@ -1,7 +1,5 @@
 package protos;
 
-import sun.plugin.dom.exception.InvalidStateException;
-
 import java.nio.ByteBuffer;
 
 /**
@@ -45,21 +43,21 @@ public class HTTPMessage2 {
 
 	public MethodType getMethod() {
 		if (this.type == MessageType.RESPONSE) {
-			throw new InvalidStateException("Responses don't have Method");
+			throw new IllegalStateException("Responses don't have Method");
 		}
 		return method;
 	}
 
 	public String getHost() {
 		if (this.type == MessageType.RESPONSE) {
-			throw new InvalidStateException("Responses don't have Host");
+			throw new IllegalStateException("Responses don't have Host");
 		}
 		return host;
 	}
 
 	public Integer getPort() {
 		if (this.type == MessageType.RESPONSE) {
-			throw new InvalidStateException("Responses don't have Port");
+			throw new IllegalStateException("Responses don't have Port");
 		}
 		return port;
 	}
