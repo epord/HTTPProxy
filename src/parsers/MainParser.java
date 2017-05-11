@@ -74,7 +74,6 @@ public class MainParser {
         return content;
     }
 
-
     private void printBuffer(byte [] buffer){
         StringBuffer str = new StringBuffer();
         for (byte c: buffer ) {

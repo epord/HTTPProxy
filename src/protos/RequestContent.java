@@ -15,6 +15,7 @@ public class RequestContent {
     public String uri;
     public HTTPVersion version;
     public StateMachine machine;
+    public boolean isComplete;
 
     public enum HTTPVersion {
         zero,

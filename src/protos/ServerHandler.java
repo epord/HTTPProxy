@@ -1,5 +1,6 @@
 package protos;
 
+import parsers.MainError;
 import parsers.MainParser;
 
 import java.io.IOException;
@@ -18,23 +19,38 @@ public class ServerHandler {
     }
 
 
-    public static RequestContent handleRead(SocketChannel keySocket, ConnectionState state, ByteBuffer buf) throws IOException {
-        int bytesRead = keySocket.read(buf);
+    public static RequestContent handleRead(SocketChannel socket, ConnectionState state, ByteBuffer buf) throws IOException {
+        socket.configureBlocking(false);
+
+        int bytesRead = socket.read(buf);
         if (bytesRead <=0 ) { // Did the other end close?
             return null;
         } else  {
             buf.position(buf.position() - bytesRead);
-           return processRequest(buf,state);
+           RequestContent ans = processRequest(buf,state);
+            if(ans.machine.error == MainError.IncompleteData) {
+                ans.machine.error = null;
+                ans.isComplete = false;
+            } else {
+                ans.isComplete = true;
+            }
+            return ans;
         }
     }
 
-    public static void handleWrite(RequestContent content, SocketChannel socket, ConnectionState state, ByteBuffer buf) throws IOException {
+    public static int handleWrite(RequestContent content, SocketChannel socket, ConnectionState state, ByteBuffer buf) throws IOException {
         socket.configureBlocking(false);
+        int bytesWritten = buf.remaining();
         if (socket.isOpen()) {
-            buf.flip();
             socket.write(buf);
-            //TODO check if eveything has been written
-            buf.clear();
+            //TODO check if everything has been written
+            if(buf.remaining() == 0) {
+                buf.clear();
+            }
+
+            return bytesWritten - buf.remaining();
+        } else {
+            return -1;
         }
     }
 

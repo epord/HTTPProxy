@@ -1,9 +1,12 @@
 package protos;
 
+import parsers.MainError;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
+import java.security.Key;
 import java.util.Iterator;
 import java.util.Random;
 
@@ -15,6 +18,7 @@ public class TCPSocketServer {
     private static final int TIMEOUT = 2000;
     private static final int BUFSIZE = 8 * 1024; // 8KB
     private static final int NONE = 0;
+
     private class KeyData {
         State state;
         ByteBuffer buffer;
@@ -24,6 +28,7 @@ public class TCPSocketServer {
         SelectionKey key;
         int Id;
     }
+
     private enum State {
         CONNECTING {
             public void attend(KeyData data) {
@@ -57,7 +62,7 @@ public class TCPSocketServer {
                             data.userChannel,
                             data.state.connectionState(),
                             data.buffer);
-
+                    data.key.interestOps(NONE);
 
                     if(data.content == null ){
                         System.out.println("CLOSING ERROR");
@@ -65,16 +70,26 @@ public class TCPSocketServer {
                         return;
                     }
 
-                    data.state = SENDINGREQUEST;
-                    data.serverChannel = SocketChannel.open();
-                    data.serverChannel.configureBlocking(false);
+                    MainError error = data.content.machine.error;
+                    if(error != null) {
+                        errorCase(data);
+                    } else {
+                        successCase(data);
+                    }
 
                     Integer port = data.content.port;
                     String host = data.content.host;
-                    data.key.interestOps(NONE);
 
-                    //TODO delete this
-                    if(host==null) host="www.google.com.ar";
+
+                    if (host == null || port == null){
+                        System.out.println("NO HOST FOUND");
+                        data.userChannel.close();
+                        return;
+                    }
+
+                    data.serverChannel = SocketChannel.open();
+                    data.serverChannel.configureBlocking(false);
+
 
                     if ( data.serverChannel.connect(new InetSocketAddress(host,port)) ) {
                         data.state = LISTENINGRESPONSE;
@@ -92,6 +107,38 @@ public class TCPSocketServer {
                     e.printStackTrace();
                 }
             }
+
+            public void errorCase(KeyData data) throws IOException {
+                MainError error = data.content.machine.error;
+
+                if (error != MainError.IncompleteData) {
+                    System.out.println("ERROR IN THE REQUEST " + error);
+                    data.key.cancel();
+                    data.userChannel.close();
+                    data.serverChannel.close();
+                    data.state = CLOSING;
+                    return;
+                }
+
+                data.userChannel.register(data.key.selector(), SelectionKey.OP_READ, data);
+
+                Integer port = data.content.port;
+                String host = data.content.host;
+
+                if (port == null || host == null) {
+                    data.state = LISTENINGREQUEST;
+                } else {
+                    data.state = KEEPLISTENINGREQUEST;
+
+                }
+            }
+
+            public void successCase(KeyData data) throws IOException {
+
+            }
+        },
+        KEEPLISTENINGREQUEST {
+
         },
         CONNECTINGORIGIN {
             public void attend(KeyData data) {
@@ -141,6 +188,33 @@ public class TCPSocketServer {
                     e.printStackTrace();
                 }
             }
+        },
+        KEEPSENDINGREQUEST{
+//            public void attend(KeyData data) {
+//                try {
+//                    if(!data.key.isWritable()) {
+//                        throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
+//                    }
+//
+//                    ServerHandler.handleWrite(
+//                            data.content,
+//                            data.serverChannel,
+//                            data.state.connectionState(),
+//                            data.buffer);
+//
+////                    System.out.println("SENDING REQUEST:\n" + new String(data.buffer.array()));
+//
+//                    data.state = LISTENINGRESPONSE;
+//                    data.key.interestOps(NONE);
+//                    data.serverChannel.register(data.key.selector(), SelectionKey.OP_READ, data);
+//                } catch (CancelledKeyException e) {
+//                    System.out.println("Key was closed");
+//                    e.printStackTrace();
+//                } catch (IOException e) {
+//                    System.out.println("Error reading connection");
+//                    e.printStackTrace();
+//                }
+//            }
         },
         LISTENINGRESPONSE {
             public void attend(KeyData data) {
@@ -311,5 +385,14 @@ public class TCPSocketServer {
             }
         }
     }
+
+    private static void printBuffer(byte [] buffer){
+        StringBuffer str = new StringBuffer();
+        for (byte c: buffer ) {
+            str.append((char)c);
+        }
+        System.out.println(str.toString());
+    }
+
 
 }
