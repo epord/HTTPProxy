@@ -16,10 +16,16 @@ public class TCPSocketServer {
 
 	public enum State {
 		LISTENINGREQUEST {
-			public void attend(ClientData clientData) {
+			public void attend(ConnectionData data) {
+
+				ClientData clientData = (ClientData) data;
 				try {
 					if (!clientData.clientKey.isReadable()) {
 						throw new IllegalStateException("WAS LISTENING A NON READABLE KEY");
+					}
+
+					if (!clientData.buffer.hasRemaining()) {
+						clientData.clientKey.interestOps(NONE);
 					}
 
 					clientData.content = ServerHandler.handleRead(
@@ -48,9 +54,14 @@ public class TCPSocketServer {
 					hostData.hostChannel = clientData.hostChannel;
 					hostData.state = CONNECTINGTOHOST;
 					hostData.hostChannel.register(clientData.clientKey.selector(), SelectionKey.OP_CONNECT, clientData);
+					hostData.hostKey = hostData.hostChannel.keyFor(clientData.clientKey.selector());
 
+					clientData.hostKey = hostData.hostKey;
 
-					clientData.state = SENDINGTOCLIENT;
+					//TODO: JUANFRA
+//					if (messageHasEnded) {
+//						clientData.state = SENDINGTOCLIENT;
+//					}
 
 				} catch (CancelledKeyException e) {
 					System.out.println("Key was closed");
@@ -62,7 +73,9 @@ public class TCPSocketServer {
 			}
 		},
 		CONNECTINGTOHOST {
-			public void attend(HostData hostData) {
+			public void attend(ConnectionData data) {
+
+				HostData hostData = (HostData) data;
 				try {
 					if (!hostData.hostKey.isConnectable()) {
 						throw new IllegalStateException("WAS TRYING TO CONNECT A NON CONNECTABLE KEY");
@@ -71,7 +84,7 @@ public class TCPSocketServer {
 					if (hostData.hostChannel.finishConnect()) {
 						hostData.state = SENDINGTOHOST;
 						hostData.hostKey.interestOps(SelectionKey.OP_WRITE);
-						hostData.hostChannel.register(hostData.clientKey.selector(), SelectionKey.OP_WRITE, hostData);
+//						hostData.hostChannel.register(hostData.clientKey.selector(), SelectionKey.OP_WRITE, hostData); //TODO: ES NECESARIO?
 					}
 
 				} catch (CancelledKeyException e) {
@@ -84,7 +97,9 @@ public class TCPSocketServer {
 			}
 		},
 		SENDINGTOHOST {
-			public void attend(HostData hostData) {
+			public void attend(ConnectionData data) {
+
+				HostData hostData = (HostData) data;
 				try {
 					if (!hostData.hostKey.isWritable()) {
 						throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
@@ -95,13 +110,19 @@ public class TCPSocketServer {
 							null,
 							hostData.hostChannel,
 							MessageType.REQUEST,
-							hostData.buffer);
+							((ClientData) hostData.clientKey.attachment()).buffer);
 
 					//TODO: Debería quedarse en este estado hasta que termine de escribir.
 
-					hostData.state = LISTENINGHOST;
-					hostData.hostKey.interestOps(SelectionKey.OP_READ);
-					hostData.hostChannel.register(hostData.hostKey.selector(), SelectionKey.OP_READ, hostData); //TODO: Esto es necesario?
+//					if (messageEnded) {
+//						hostData.state = LISTENINGHOST;
+//						hostData.hostKey.interestOps(SelectionKey.OP_READ);
+//					} else {
+						hostData.clientKey.interestOps(SelectionKey.OP_READ);
+//					}
+
+//					hostData.hostChannel.register(hostData.hostKey.selector(), SelectionKey.OP_READ, hostData); //TODO: Esto es necesario?
+
 				} catch (CancelledKeyException e) {
 					System.out.println("Key was closed");
 					e.printStackTrace();
@@ -112,7 +133,9 @@ public class TCPSocketServer {
 			}
 		},
 		LISTENINGHOST {
-			public void attend(HostData hostData) {
+			public void attend(ConnectionData data) {
+
+				HostData hostData = (HostData) data;
 				try {
 					if (!hostData.hostKey.isReadable()) {
 						throw new IllegalStateException("WAS LISTENING A NON READABLE KEY");
@@ -142,7 +165,8 @@ public class TCPSocketServer {
 			}
 		},
 		SENDINGTOCLIENT {
-			public void attend(ClientData clientData) {
+			public void attend(ConnectionData data) {
+				ClientData clientData = (ClientData) data;
 				try {
 					if (!clientData.clientKey.isWritable()) {
 						throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
@@ -152,7 +176,7 @@ public class TCPSocketServer {
 							clientData.content,
 							clientData.clientChannel,
 							MessageType.RESPONSE,
-							clientData.buffer);
+							((HostData) clientData.hostKey.attachment()).buffer);
 
 
 //					clientData.clientKey.cancel();
@@ -167,17 +191,17 @@ public class TCPSocketServer {
 					e.printStackTrace();
 				}
 			}
-		},
-		CLOSING;
+		},;
 
 		public void attend(ConnectionData data) {
 		}
-
 	}
 
 	public void start() {
 
-		Selector selector = null;
+		System.out.println("STARTING");
+
+		Selector selector;
 		//region INITIALIZE
 		try {
 			selector = Selector.open();
@@ -252,6 +276,7 @@ public class TCPSocketServer {
 				if (key.isValid()) {
 					if (key.isAcceptable()) {
 						data = handleAccept(key);
+						continue;
 					} else {
 						data = (ConnectionData) key.attachment();
 					}
@@ -272,6 +297,7 @@ public class TCPSocketServer {
 			data.clientChannel.configureBlocking(false);
 			data.state = State.LISTENINGREQUEST;
 			data.clientChannel.register(serverKey.selector(), SelectionKey.OP_READ, data);
+			data.clientKey = data.clientChannel.keyFor(serverKey.selector());
 		} catch (CancelledKeyException e) {
 			System.err.println("Key was closed");
 			e.printStackTrace();
