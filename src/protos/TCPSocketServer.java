@@ -131,7 +131,7 @@ public class TCPSocketServer {
 //					}
 
 					hostData.hostKey.interestOps(NONE);
-					hostData.userChannel.register(hostData.key.selector(), SelectionKey.OP_WRITE, hostData);
+					hostData.hostChannel.register(hostData.hostKey.selector(), SelectionKey.OP_WRITE, hostData);
 				} catch (CancelledKeyException e) {
 					System.out.println("Key was closed");
 					e.printStackTrace();
@@ -143,28 +143,22 @@ public class TCPSocketServer {
 		},
 		SENDINGTOCLIENT {
 			public void attend(ClientData clientData) {
-
-			}
-		},
-		SENDINGRESPONSE {
-			public void attend(KeyData data) {
 				try {
-					if (!data.key.isWritable()) {
+					if (!clientData.clientKey.isWritable()) {
 						throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
 					}
 
 					ServerHandler.handleWrite(
-							data.content,
-							data.userChannel,
+							clientData.content,
+							clientData.clientChannel,
 							MessageType.RESPONSE,
-							data.buffer);
+							clientData.buffer);
 
-//                    System.out.println("SENDING RESPONSE:\n" + new String(data.buffer.array()));
 
-					data.key.cancel();
-					data.userChannel.close();
-					data.serverChannel.close();
-					data.state = CLOSING;
+//					clientData.clientKey.cancel();
+//					clientData.clientChannel.close();
+//					clientData.hostChannel.close();
+//					clientData.state = CLOSING;
 				} catch (CancelledKeyException e) {
 					System.out.println("Key was closed");
 					e.printStackTrace();
@@ -179,19 +173,6 @@ public class TCPSocketServer {
 		public void attend(ConnectionData data) {
 		}
 
-		MessageType connectionState() {
-			switch (this) {
-				case LISTENINGREQUEST:
-				case SENDINGTOHOST:
-				case CONNECTING:
-					return MessageType.REQUEST;
-				case SENDINGTOCLIENT:
-				case SENDINGRESPONSE:
-					return MessageType.RESPONSE;
-				default:
-					return null;
-			}
-		}
 	}
 
 	public void start() {
@@ -227,10 +208,10 @@ public class TCPSocketServer {
 						(k) -> {
 							ConnectionData data = (ConnectionData) k.attachment();
 							if (data != null) {
-								System.err.println("Key id:" + data.Id);
+								System.err.println("Key id:" + data.id);
 								System.err.println("Key state:" + data.state.name());
-								if (((ClientData) data.content) != null)
-									System.err.println("Key request:" + data.content.host);
+								if (((ClientData) data).content != null)
+									System.err.println("Key request:" + ((ClientData) data).content.host);
 
 							} else {
 								System.err.println("Key not identified yet");
