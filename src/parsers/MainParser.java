@@ -40,20 +40,15 @@ public class MainParser {
         return isCLT[(int)c&0xFF];
     }
 
-    public RequestContent parse(ByteBuffer buffer, ConnectionState state) {
-        if (state == ConnectionState.REQUEST) {
-            return parseRequest(buffer);
-        } else {
-            return parseResponse(buffer);
+    public RequestContent parseRequest(ByteBuffer buffer, RequestContent content) {
+        if(content.machine==null) {
+            content.machine = new StateMachine(buffer);
         }
-    }
-
-    private RequestContent parseRequest(ByteBuffer buffer) {
-        StateMachine machine = new StateMachine(buffer);
+        StateMachine machine = content.machine;
 
         while(machine.state!=MainState.body && machine.error == null) {
             if(machine.bytes.hasRemaining()) {
-                machine.state.transition(machine);
+                machine.state.transition(content);
                 machine.read ++;
             } else if (machine.state != MainState.body){
                 machine.error = MainError.IncompleteData;
@@ -66,11 +61,6 @@ public class MainParser {
             System.out.println("END OF ERROR -------------");
         }
 
-        RequestContent content = new RequestContent();
-        content.host = machine.headers.get("host");
-        content.port = 80;
-        content.body = buffer;
-        content.machine = machine;
         return content;
     }
 
@@ -82,9 +72,13 @@ public class MainParser {
         System.out.println(str.toString());
     }
 
-    private RequestContent parseResponse(ByteBuffer buffer) {
+    public RequestContent parseResponse(ByteBuffer buffer, RequestContent content) {
         buffer.position(buffer.limit());
-        return new RequestContent(null, null, 80, buffer);
+        if(content.machine==null) {
+            content.machine = new StateMachine(buffer);
+        }
+        content.isComplete = true;
+        return content;
     }
 
 //        int i = 0;

@@ -2,6 +2,7 @@ package protos;
 
 import parsers.MainError;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -21,7 +22,7 @@ public class TCPSocketServer {
 
     private class KeyData {
         State state;
-        ByteBuffer buffer;
+        BufferData buffer;
         RequestContent content;
         SocketChannel userChannel;
         SocketChannel serverChannel;
@@ -56,12 +57,9 @@ public class TCPSocketServer {
                     }
 
                     data.userChannel = (SocketChannel) data.key.channel();
-                    data.buffer =  ByteBuffer.allocate(BUFSIZE);
+//                    data.buffer =  ByteBuffer.allocate(BUFSIZE);
 
-                    data.content = ServerHandler.handleRead(
-                            data.userChannel,
-                            data.state.connectionState(),
-                            data.buffer);
+                    data.content = ServerHandler.handleRead(null);
                     data.key.interestOps(NONE);
 
                     if(data.content == null ){
@@ -169,13 +167,9 @@ public class TCPSocketServer {
                         throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
                     }
 
-                    ServerHandler.handleWrite(
-                            data.content,
-                            data.serverChannel,
-                            data.state.connectionState(),
-                            data.buffer);
+                    ServerHandler.handleWrite(null);
 
-//                    System.out.println("SENDING REQUEST:\n" + new String(data.buffer.array()));
+//                    System.out.println("SENDING REQUEST:\n" + new String(data.bufferData.array()));
 
                     data.state = LISTENINGRESPONSE;
                     data.key.interestOps(NONE);
@@ -200,9 +194,9 @@ public class TCPSocketServer {
 //                            data.content,
 //                            data.serverChannel,
 //                            data.state.connectionState(),
-//                            data.buffer);
+//                            data.bufferData);
 //
-////                    System.out.println("SENDING REQUEST:\n" + new String(data.buffer.array()));
+////                    System.out.println("SENDING REQUEST:\n" + new String(data.bufferData.array()));
 //
 //                    data.state = LISTENINGRESPONSE;
 //                    data.key.interestOps(NONE);
@@ -223,10 +217,7 @@ public class TCPSocketServer {
                         throw new IllegalStateException("WAS LISTENING A NON READABLE KEY");
                     }
 
-                    data.content = ServerHandler.handleRead(
-                            data.serverChannel,
-                            data.state.connectionState(),
-                            data.buffer);
+                    data.content = ServerHandler.handleRead(null);
 
                     if(data.content == null ){
                         data.userChannel.close();
@@ -253,13 +244,9 @@ public class TCPSocketServer {
                         throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
                     }
 
-                    ServerHandler.handleWrite(
-                            data.content,
-                            data.userChannel,
-                            data.state.connectionState(),
-                            data.buffer);
+                    ServerHandler.handleWrite(null);
 
-//                    System.out.println("SENDING RESPONSE:\n" + new String(data.buffer.array()));
+//                    System.out.println("SENDING RESPONSE:\n" + new String(data.bufferData.array()));
 
                     data.key.cancel();
                     data.userChannel.close();

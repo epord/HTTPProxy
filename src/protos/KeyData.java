@@ -1,8 +1,6 @@
 package protos;
 
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.SocketChannel;
 import java.util.Random;
 
 /**
@@ -15,34 +13,42 @@ public class KeyData {
     ChannelData user;
     ChannelData server;
 
-    ByteBuffer buffer;
+    BufferData bufferData;
 
     SelectionKey key;
     int Id;
     boolean isUser;
+
+    private KeyData pair;
 
     public static KeyData userKeyData(int bufferSize){
         KeyData userKeyData = new KeyData();
         userKeyData.user = new ChannelData(null,ChannelState.uninitialized);
         userKeyData.server = new ChannelData(null,ChannelState.uninitialized);
 
-        userKeyData.buffer = ByteBuffer.allocate(bufferSize);
+        userKeyData.bufferData = new BufferData(bufferSize);
 
         userKeyData.Id = Math.abs(new Random().nextInt());
         userKeyData.isUser = true;
+        userKeyData.pair = generatePair(userKeyData);
 
         return userKeyData;
     }
 
-    public KeyData getPair() {
+    public KeyData getPair(){
+        return pair;
+    }
+
+    private static KeyData generatePair(KeyData k1) {
 
         KeyData serverKeyData = new KeyData();
-        serverKeyData.server = server;
-        serverKeyData.user = user;
-        serverKeyData.buffer = buffer;
+        serverKeyData.content = k1.content;
+        serverKeyData.server = k1.server;
+        serverKeyData.user = k1.user;
+        serverKeyData.bufferData = k1.bufferData;
 
-        serverKeyData.isUser = !isUser;
-        serverKeyData.Id = -Id;
+        serverKeyData.isUser = !k1.isUser;
+        serverKeyData.Id = -k1.Id;
 
         return serverKeyData;
     }

@@ -16,7 +16,7 @@ public enum ChannelState {
         @Override
         public void userAttend(KeyData data) {
             try {
-                assert data.key.isAcceptable() : "Key is not acceptable";
+                if(!data.key.isAcceptable()) throw new IllegalStateException("Key is not acceptable");
 
                 SocketChannel userChannel = ((ServerSocketChannel) data.key.channel()).accept();
                 userChannel.configureBlocking(false);
@@ -46,11 +46,11 @@ public enum ChannelState {
         @Override
         public void serverAttend(KeyData data) {
             try {
-                assert data.key.isConnectable() : "Key not connectable";
+                if(!data.key.isConnectable()) throw new IllegalStateException("Key is not connectable");
 
                 if ( data.server.channel.finishConnect() ) {
-                    data.server.channel.register(data.key.selector(), SelectionKey.OP_WRITE, data);
                     data.server.state = writing;
+                    data.server.channel.register(data.key.selector(), SelectionKey.OP_WRITE, data);
 
                 } else {
                     data.key.cancel();
@@ -67,6 +67,7 @@ public enum ChannelState {
             }
         }
     },
+
     reading {
         @Override
         public void userAttend(KeyData data) {
@@ -77,22 +78,31 @@ public enum ChannelState {
                 Integer port = data.content.port;
                 String host = data.content.host;
 
-                if(data.server.state == uninitialized) {
+                if (port != null || host != null) {
+                    host = "lanacion.com";
+                    port = 80;
+                }
+
+
+                    if(data.server.state == uninitialized) {
                     if (port != null && host != null) {
                         data.server.channel = SocketChannel.open();
                         data.server.channel.configureBlocking(false);
 
-                        KeyData serverKeyData = data.getPair();
-
                         if (data.server.channel.connect(new InetSocketAddress(host, port))) {
-                            data.server.state = connecting;
-                            data.server.channel.register(data.key.selector(), SelectionKey.OP_READ, serverKeyData);
+                            data.server.state = writing;
+                            data.server.channel.register(data.key.selector(), SelectionKey.OP_WRITE, data.getPair());
 
                         } else {
-                            data.server.state = writing;
-                            data.server.channel.register(data.key.selector(), SelectionKey.OP_WRITE, serverKeyData);
+                            data.server.state = connecting;
+                            data.server.channel.register(data.key.selector(), SelectionKey.OP_CONNECT, data.getPair());
+
                         }
                     }
+                }
+
+                if(data.user.state == done) {
+                    data.user.state = waiting;
                 }
 
             }catch (IOException e){
@@ -105,6 +115,10 @@ public enum ChannelState {
         public void serverAttend(KeyData data) {
             try {
                 int readBytes = read(data, data.server, data.user);
+                if(data.user.state == waiting) {
+                    data.user.state = writing;
+                    data.user.channel.register(data.key.selector(),SelectionKey.OP_WRITE,data.getPair());
+                }
             }catch (IOException e){
                 System.err.println(" --- Error when reading user request \n");
                 e.printStackTrace();
@@ -112,19 +126,16 @@ public enum ChannelState {
         }
 
         private int read(KeyData data,ChannelData from,ChannelData to) throws IOException {
-            assert data.key.isReadable() : "Key is not readable";
+            if(!data.key.isReadable()) throw new IllegalStateException("Key is not readable");
 
-            int originalSize = data.buffer.remaining();
+            int originalPos = data.bufferData.buff.position();
 
-            data.content = ServerHandler.handleRead(
-                    data.user.channel,
-                    data.isUser? ConnectionState.REQUEST: ConnectionState.RESPONSE,
-                    data.buffer);
+            data.content = ServerHandler.handleRead(data);
 
-            int readBytes = originalSize - data.buffer.remaining();
+            int readBytes = data.bufferData.buff.position() - originalPos;
 
-            assert readBytes > 0 : "COUlD NOT READ";
-            assert data.content != null : "ERROR READING CONTENT NULL";
+            if(readBytes<=0) throw new IllegalStateException("Read 0 bytes");
+            if(data.content == null) throw new IllegalStateException("Content is null");
 
             MainError error = data.content.machine.error;
             boolean isComplete = data.content.isComplete;
@@ -136,7 +147,7 @@ public enum ChannelState {
 
             if(isComplete) {
                 from.state = done;
-            } else if(data.buffer.hasRemaining()) {
+            } else if(!data.bufferData.buff.hasRemaining()) {
                 from.state = waiting;
             } else {
                 from.state = reading;
@@ -144,7 +155,8 @@ public enum ChannelState {
             }
 
             if(to.state == waiting || to.state == writing) {
-                to.channel.register(data.key.selector(),SelectionKey.OP_WRITE,data);
+                to.state = writing;
+                to.channel.register(data.key.selector(),SelectionKey.OP_WRITE,data.getPair());
             }
 
             return readBytes;
@@ -154,11 +166,14 @@ public enum ChannelState {
         @Override
         public void userAttend(KeyData data) {
             try {
-                write(data, data.user, data.server);
+                write(data, data.server, data.user);
                 if(data.server.state == done) {
-                    data.user.state = waiting;
+                    data.user.state = done;
+                } else if(data.server.state == waiting || data.server.state == reading){
                     data.server.state = reading;
-                    data.server.channel.register(data.key.selector(),SelectionKey.OP_READ,data);
+                    data.server.channel.register(data.key.selector(),SelectionKey.OP_READ,data.getPair());
+                } else {
+                    throw new RuntimeException("WHAT?");
                 }
             }catch (IOException e){
                 System.err.println(" --- Error when reading user request \n");
@@ -169,7 +184,15 @@ public enum ChannelState {
         @Override
         public void serverAttend(KeyData data) {
             try {
-                write(data, data.server, data.user);
+                write(data, data.user, data.server);
+                if(data.user.state == done) {
+                    data.server.state = reading;
+                    data.server.channel.register(data.key.selector(),SelectionKey.OP_READ,data);
+                } else {
+                    data.server.state = waiting;
+                    data.user.state = reading;
+                    data.user.channel.register(data.key.selector(),SelectionKey.OP_READ,data.getPair());
+                }
             }catch (IOException e){
                 System.err.println(" --- Error when reading user request \n");
                 e.printStackTrace();
@@ -177,17 +200,11 @@ public enum ChannelState {
         }
 
         private int write(KeyData data,ChannelData from,ChannelData to) throws IOException {
-            assert data.key.isWritable() : "Key is not writable";
+            if(!data.key.isWritable()) throw new IllegalStateException("Key is not writable");
 
-            int originalSize = data.buffer.capacity() - data.buffer.remaining();
+            int writtenBytes = ServerHandler.handleWrite(data);
 
-            int writtenBytes = ServerHandler.handleWrite(
-                    data.content,
-                    data.user.channel,
-                    data.isUser? ConnectionState.REQUEST: ConnectionState.RESPONSE,
-                    data.buffer);
-
-            assert writtenBytes > 0 : "COUlD NOT WRITE";
+            if(writtenBytes <= 0) throw new IllegalStateException("COUlD NOT WRITE");
 
             MainError error = data.content.machine.error;
 
@@ -196,19 +213,12 @@ public enum ChannelState {
                 return -1;
             }
 
-            if(data.buffer.hasRemaining()) {
+            if(data.bufferData.buff.position() != 0) {
                 to.state = writing;
                 to.channel.register(data.key.selector(),SelectionKey.OP_WRITE,data);
-            } else if(from.state == done) {
-                to.state = done;
             } else {
-                to.state = waiting;
+                to.state = done;
             }
-
-            if( from.state == waiting || from.state == reading ) {
-                from.channel.register(data.key.selector(),SelectionKey.OP_READ,data);
-            }
-
 
             return writtenBytes;
         }

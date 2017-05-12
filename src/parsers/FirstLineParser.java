@@ -21,7 +21,8 @@ public class FirstLineParser {
         Object firstLineData;
     }
 
-    public MainState transition(StateMachine machine) {
+    public MainState transition(RequestContent content) {
+        StateMachine machine = content.machine;
         if(machine.stateData == null) {
             machine.stateData = new Data();
         }
@@ -29,7 +30,7 @@ public class FirstLineParser {
         Data stateData = ((Data) machine.stateData);
 
         FirstLineState prevState = stateData.firstLineState;
-        FirstLineState nextState = stateData.firstLineState.transition(machine);
+        FirstLineState nextState = stateData.firstLineState.transition(content);
 
         if( prevState!=nextState ) {
            stateData.firstLineData = null;
@@ -54,7 +55,9 @@ public class FirstLineParser {
                 int index = 0;
             }
 
-            public FirstLineState transition(StateMachine machine) {
+            public FirstLineState transition(RequestContent content) {
+                StateMachine machine = content.machine;
+
                 Data parentData = (Data) machine.stateData;
                 if (parentData.firstLineData == null) {
                     parentData.firstLineData = new FirstLineData();
@@ -67,15 +70,15 @@ public class FirstLineParser {
                     switch (c) {
                         case 'G':
                         case 'g':
-                            machine.method = MethodType.GET;
+                            content.method = MethodType.GET;
                             break;
                         case 'P':
                         case 'p':
-                            machine.method = MethodType.POST;
+                            content.method = MethodType.POST;
                             break;
                         case 'H':
                         case 'h':
-                            machine.method = MethodType.HEAD;
+                            content.method = MethodType.HEAD;
                             break;
                         default:
                             return setError(machine, MainError.UnsupportedMethod);
@@ -83,14 +86,14 @@ public class FirstLineParser {
                     return method;
                 } else {
                     if (c == ' ') {
-                        if (machine.method.isFinished(data.index)) {
+                        if (content.method.isFinished(data.index)) {
                             return URI;
                         } else {
                             return setError(machine, MainError.UnsupportedMethod);
                         }
                     }
 
-                    if (machine.method.isValid(data.index, c)) {
+                    if (content.method.isValid(data.index, c)) {
                         data.index++;
                         return method;
                     } else {
@@ -106,7 +109,8 @@ public class FirstLineParser {
                 StringBuffer buffer = new StringBuffer();
             }
 
-            public FirstLineState transition(StateMachine machine) {
+            public FirstLineState transition(RequestContent content) {
+                StateMachine machine = content.machine;
                 Data parentData = (Data) machine.stateData;
                 if (parentData.firstLineData == null) {
                     parentData.firstLineData = new FirstLineData();
@@ -115,7 +119,7 @@ public class FirstLineParser {
 
                 byte c = machine.bytes.get();
                 if (c == ' ') {
-                    machine.uri = data.buffer.toString();
+                    content.uri = data.buffer.toString();
                     return version;
                 } else if (MainParser.isUri(c)) {
                     data.buffer.append(Character.toLowerCase((char) c));
@@ -132,7 +136,9 @@ public class FirstLineParser {
 
             byte[] http = {'H', 'T', 'T', 'P', '/', '1', '.'};
 
-            public FirstLineState transition(StateMachine machine) {
+            public FirstLineState transition(RequestContent content) {
+                StateMachine machine = content.machine;
+
                 Data parentData = (Data) machine.stateData;
                 if (parentData.firstLineData == null) {
                     parentData.firstLineData = new FirstLineData();
@@ -151,7 +157,7 @@ public class FirstLineParser {
                     if (v != 0 && v != 1) {
                         return setError(machine, MainError.InvalidVersion);
                     } else {
-                        machine.HTTPversion = RequestContent.HTTPVersion.version(v);
+                        content.version = RequestContent.HTTPVersion.version(v);
                         return RN;
                     }
                 }
@@ -163,7 +169,8 @@ public class FirstLineParser {
                 boolean recent_R = false;
             }
 
-            public FirstLineState transition(StateMachine machine) {
+            public FirstLineState transition(RequestContent content) {
+                StateMachine machine = content.machine;
                 Data parentData = (Data) machine.stateData;
                 if (parentData.firstLineData == null) {
                     parentData.firstLineData = new FirstLineData();
@@ -192,7 +199,7 @@ public class FirstLineParser {
         nextState,
         errorState;
 
-        public FirstLineState transition(StateMachine machine) {
+        public FirstLineState transition(RequestContent requestContent) {
             return this;
         }
 

@@ -1,5 +1,7 @@
 package parsers;
 
+import protos.RequestContent;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 
@@ -21,14 +23,15 @@ public class HeaderParser {
         Object headerData;
     }
 
-    public MainState transition(StateMachine machine) {
+    public MainState transition(RequestContent content) {
+        StateMachine machine = content.machine;
         if(machine.stateData == null) {
             machine.stateData = new Data();
         }
         Data stateData = ((Data) machine.stateData);
 
         HeaderState prevState = stateData.headerState;
-        HeaderState nextState = stateData.headerState.transition(machine);
+        HeaderState nextState = stateData.headerState.transition(content);
 
         if( prevState!=nextState ) {
             stateData.headerData = null;
@@ -53,7 +56,8 @@ public class HeaderParser {
                 boolean inNewLine = false;
             }
 
-            public HeaderState transition(StateMachine machine) {
+            public HeaderState transition(RequestContent content) {
+                StateMachine machine = content.machine;
                 Data parentData = (Data) machine.stateData;
                 if (parentData.headerData == null) {
 
@@ -117,8 +121,10 @@ public class HeaderParser {
                 HeaderContentState currentState = HeaderContentState.leadingSpaces;
             }
 
-            public HeaderState transition(StateMachine machine) {
+            public HeaderState transition(RequestContent content) {
+                StateMachine machine = content.machine;
                 Data parentData = (Data) machine.stateData;
+
                 if (parentData.headerData == null) {
                     parentData.headerData = new HeaderData();
                 }
@@ -158,7 +164,7 @@ public class HeaderParser {
                             return headerContent;
                         } else {
                             parentData.forHeaderTitle = c;
-                            machine.headers.put(parentData.lastHeader,data.buffer.toString());
+                            content.headers.put(parentData.lastHeader,data.buffer.toString());
                             return header;
                         }
                 }
@@ -169,7 +175,7 @@ public class HeaderParser {
         nextState,
         errorState;
 
-        public HeaderState transition(StateMachine machine) {
+        public HeaderState transition(RequestContent requestContent) {
             return this;
         }
 

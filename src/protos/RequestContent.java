@@ -3,6 +3,8 @@ package protos;
 import parsers.StateMachine;
 
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by epord on 20/04/17.
@@ -14,6 +16,7 @@ public class RequestContent {
     public ByteBuffer body;
     public String uri;
     public HTTPVersion version;
+    public Map<String,String> headers;
     public StateMachine machine;
     public boolean isComplete;
 
@@ -35,5 +38,6 @@ public class RequestContent {
         this.host = host;
         this.port = port;
         this.body = body;
+        this.headers = new HashMap<>();
     }
 }

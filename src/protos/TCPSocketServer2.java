@@ -15,7 +15,7 @@ import java.util.Random;
 public class TCPSocketServer2 {
 
     private static final int TIMEOUT = 2000;
-    private static final int BUFSIZE = 8 * 1024; // 8KB
+    private static final int BUFSIZE = 25; //8 * 1024; // 8KB;
     private static final int NONE = 0;
 
     public void start() {
@@ -53,7 +53,7 @@ public class TCPSocketServer2 {
                                 if(data != null) {
                                     System.err.println("Key id:" + data.Id);
                                     System.err.println("Key Userstate:" + data.user.state);
-                                    System.err.println("Key Serverstate:" + data.user.state);
+                                    System.err.println("Key Serverstate:" + data.server.state);
                                     if(data.content!=null)
                                     System.err.println("Key request:" + data.content.host);
 
@@ -101,14 +101,26 @@ public class TCPSocketServer2 {
                         data = (KeyData) key.attachment();
                     }
 
-                    System.out.println(data.user.state + " -> " + data.server.state);
+                    String from = data.user.state.toString() + " , " + data.server.state;
+                    key.interestOps(NONE);
                     data.key = key;
-
                     if(data.isUser) {
                         data.user.state.userAttend(data);
                     } else {
                         data.server.state.serverAttend(data);
                     }
+
+                    if(data.user.state == ChannelState.done && data.server.state == ChannelState.done) {
+                        data.key.cancel();
+                        try {
+                            data.user.channel.close();
+                            data.server.channel.close();
+                        }catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    System.out.println(from + " -> " + data.user.state + " , " + data.server.state);
                 }
             }
         }

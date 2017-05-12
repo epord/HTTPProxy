@@ -1,22 +1,24 @@
 package parsers;
 
+import protos.RequestContent;
+
 /**
  * Created by juanfra on 03/05/17.
  */
 public enum MainState implements Transitioner<MainState> {
     firstLine {
-        public MainState transition(StateMachine machine) {
-            return setState(machine,FirstLineParser.instance.transition(machine));
+        public MainState transition(RequestContent requestContent) {
+            return setState(requestContent.machine,FirstLineParser.instance.transition(requestContent));
         }
     },
     headers {
-        public MainState transition(StateMachine machine) {
-            return setState(machine,HeaderParser.instance.transition(machine));
+        public MainState transition(RequestContent requestContent) {
+            return setState(requestContent.machine,HeaderParser.instance.transition(requestContent));
         }
     },
     body {
-        public MainState transition(StateMachine machine) {
-            return setState(machine,done);
+        public MainState transition(RequestContent requestContent) {
+            return setState(requestContent.machine,done);
         }
     },
     errorState,
@@ -33,7 +35,7 @@ public enum MainState implements Transitioner<MainState> {
     }
 
     @Override
-    public MainState transition(StateMachine machine) {
+    public MainState transition(RequestContent requestContent) {
         return this;
     }
 }
