@@ -2,314 +2,303 @@ package protos;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.Iterator;
-import java.util.Random;
 
 /**
  * Created by epord on 20/04/17.
  */
 public class TCPSocketServer {
 
-    private static final int TIMEOUT = 2000;
-    private static final int BUFSIZE = 8 * 1024; // 8KB
-    private static final int NONE = 0;
-    private class KeyData {
-        State state;
-        ByteBuffer buffer;
-        HTTPMessage content;
-        SocketChannel userChannel;
-        SocketChannel serverChannel;
-        SelectionKey key;
-        int Id;
-    }
-    private enum State {
-        CONNECTING {
-            public void attend(KeyData data) {
-                try {
+	private static final int TIMEOUT = 2000;
+	private static final int BUFSIZE = 8 * 1024; // 8KB
+	private static final int NONE = 0;
 
-                    SocketChannel serverSocket = ((ServerSocketChannel) data.key.channel()).accept();
-                    serverSocket.configureBlocking(false);
-                    data.state = LISTENINGREQUEST;
-                    serverSocket.register(data.key.selector(), SelectionKey.OP_READ, data);
+	public enum State {
+		LISTENINGREQUEST {
+			public void attend(ClientData clientData) {
+				try {
+					if (!clientData.clientKey.isReadable()) {
+						throw new IllegalStateException("WAS LISTENING A NON READABLE KEY");
+					}
 
-                } catch (CancelledKeyException e) {
-                    System.out.println("Key was closed");
-                    e.printStackTrace();
-                }catch (IOException e) {
-                    System.out.println("Error accepting connection");
-                    e.printStackTrace();
-                }
-            }
-        },
-        LISTENINGREQUEST {
-            public void attend(KeyData data) {
-                try {
-                    if(!data.key.isReadable()) {
-                        throw new IllegalStateException("WAS LISTENING A NON READABLE KEY");
-                    }
-
-                    data.userChannel = (SocketChannel) data.key.channel();
-                    data.buffer =  ByteBuffer.allocate(BUFSIZE);
-
-                    data.content = ServerHandler.handleRead(
-                            data.userChannel,
-                            data.state.connectionState(),
-                            data.buffer);
+					clientData.content = ServerHandler.handleRead(
+							clientData.clientChannel,
+							MessageType.REQUEST,
+							clientData.buffer);
 
 
-                    if(data.content == null ){
-                        System.out.println("CLOSING ERROR");
-                        data.userChannel.close();
-                        return;
-                    }
+					if (clientData.content == null) {
+						return; //This means it couldnt get the host YET.
+					}
 
-                    data.state = SENDINGREQUEST;
-                    data.serverChannel = SocketChannel.open();
-                    data.serverChannel.configureBlocking(false);
 
-                    Integer port = data.content.port;
-                    String host = data.content.host;
-                    data.key.interestOps(NONE);
+					Integer port = clientData.content.port;
+					String host = clientData.content.host;
 
-                    //TODO delete this
-                    if(host==null) host="www.google.com.ar";
+					SocketChannel hostChannel = SocketChannel.open();
+					hostChannel.configureBlocking(false);
+					hostChannel.connect(new InetSocketAddress(host, port));
+					clientData.hostChannel = hostChannel;
 
-                    if ( data.serverChannel.connect(new InetSocketAddress(host,port)) ) {
-                        data.state = LISTENINGRESPONSE;
-                        data.serverChannel.register(data.key.selector(), SelectionKey.OP_READ, data);
-                    } else {
-                        data.state = CONNECTINGORIGIN;
-                        data.serverChannel.register(data.key.selector(),SelectionKey.OP_CONNECT,data);
-                    }
+					HostData hostData = new HostData(BUFSIZE); //TODO: Queda medio feo esto asi aca.
 
-                } catch (CancelledKeyException e) {
-                    System.out.println("Key was closed");
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    System.out.println("Error reading connection");
-                    e.printStackTrace();
-                }
-            }
-        },
-        CONNECTINGORIGIN {
-            public void attend(KeyData data) {
-                try {
-                    if (!data.key.isConnectable()) {
-                        throw new IllegalStateException("WAS TRYING TO CONNECT A NON CONNECTABLE KEY");
-                    }
+					hostData.clientKey = clientData.clientKey;
+					hostData.clientChannel = clientData.clientChannel;
+					hostData.hostChannel = clientData.hostChannel;
+					hostData.state = CONNECTINGTOHOST;
+					hostData.hostChannel.register(clientData.clientKey.selector(), SelectionKey.OP_CONNECT, clientData);
 
-                    if ( data.serverChannel.finishConnect() ) {
-                        data.state = SENDINGREQUEST;
-                        data.key.interestOps(NONE);
-                        data.serverChannel.register(data.key.selector(), SelectionKey.OP_WRITE, data);
-                    }
 
-                } catch (CancelledKeyException e) {
-                    System.out.println("Key was closed");
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    System.out.println("Error reading connection");
-                    e.printStackTrace();
-                }
-            }
-        },
-        SENDINGREQUEST {
-            public void attend(KeyData data) {
-                try {
-                    if(!data.key.isWritable()) {
-                        throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
-                    }
+					clientData.state = SENDINGTOCLIENT;
 
-                    ServerHandler.handleWrite(
-                            data.content,
-                            data.serverChannel,
-                            data.state.connectionState(),
-                            data.buffer);
+				} catch (CancelledKeyException e) {
+					System.out.println("Key was closed");
+					e.printStackTrace();
+				} catch (IOException e) {
+					System.out.println("Error reading connection");
+					e.printStackTrace();
+				}
+			}
+		},
+		CONNECTINGTOHOST {
+			public void attend(HostData hostData) {
+				try {
+					if (!hostData.hostKey.isConnectable()) {
+						throw new IllegalStateException("WAS TRYING TO CONNECT A NON CONNECTABLE KEY");
+					}
 
-//                    System.out.println("SENDING REQUEST:\n" + new String(data.buffer.array()));
+					if (hostData.hostChannel.finishConnect()) {
+						hostData.state = SENDINGTOHOST;
+						hostData.hostKey.interestOps(SelectionKey.OP_WRITE);
+						hostData.hostChannel.register(hostData.clientKey.selector(), SelectionKey.OP_WRITE, hostData);
+					}
 
-                    data.state = LISTENINGRESPONSE;
-                    data.key.interestOps(NONE);
-                    data.serverChannel.register(data.key.selector(), SelectionKey.OP_READ, data);
-                } catch (CancelledKeyException e) {
-                    System.out.println("Key was closed");
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    System.out.println("Error reading connection");
-                    e.printStackTrace();
-                }
-            }
-        },
-        LISTENINGRESPONSE {
-            public void attend(KeyData data) {
-                try {
-                    if(!data.key.isReadable()) {
-                        throw new IllegalStateException("WAS LISTENING A NON READABLE KEY");
-                    }
+				} catch (CancelledKeyException e) {
+					System.out.println("Key was closed");
+					e.printStackTrace();
+				} catch (IOException e) {
+					System.out.println("Error reading connection");
+					e.printStackTrace();
+				}
+			}
+		},
+		SENDINGTOHOST {
+			public void attend(HostData hostData) {
+				try {
+					if (!hostData.hostKey.isWritable()) {
+						throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
+					}
 
-                    data.content = ServerHandler.handleRead(
-                            data.serverChannel,
-                            data.state.connectionState(),
-                            data.buffer);
+					ServerHandler.handleWrite(
+//							hostData.content, TODO: Cambiar, el handleWrite no necesita el content, solo el buffer.
+							null,
+							hostData.hostChannel,
+							MessageType.REQUEST,
+							hostData.buffer);
 
-                    if(data.content == null ){
-                        data.userChannel.close();
-                        data.serverChannel.close();
-                        return;
-                    }
+					//TODO: Debería quedarse en este estado hasta que termine de escribir.
 
-                    data.state = SENDINGRESPONSE;
-                    data.key.interestOps(NONE);
-                    data.userChannel.register(data.key.selector(), SelectionKey.OP_WRITE, data);
-                } catch (CancelledKeyException e) {
-                    System.out.println("Key was closed");
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    System.out.println("Error reading connection");
-                    e.printStackTrace();
-                }
-            }
-        },
-        SENDINGRESPONSE {
-            public void attend(KeyData data) {
-                try {
-                    if(!data.key.isWritable()) {
-                        throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
-                    }
+					hostData.state = LISTENINGHOST;
+					hostData.hostKey.interestOps(SelectionKey.OP_READ);
+					hostData.hostChannel.register(hostData.hostKey.selector(), SelectionKey.OP_READ, hostData); //TODO: Esto es necesario?
+				} catch (CancelledKeyException e) {
+					System.out.println("Key was closed");
+					e.printStackTrace();
+				} catch (IOException e) {
+					System.out.println("Error reading connection");
+					e.printStackTrace();
+				}
+			}
+		},
+		LISTENINGHOST {
+			public void attend(HostData hostData) {
+				try {
+					if (!hostData.hostKey.isReadable()) {
+						throw new IllegalStateException("WAS LISTENING A NON READABLE KEY");
+					}
 
-                    ServerHandler.handleWrite(
-                            data.content,
-                            data.userChannel,
-                            data.state.connectionState(),
-                            data.buffer);
+					ServerHandler.handleRead(
+							hostData.hostChannel,
+							MessageType.RESPONSE,
+							hostData.buffer);
+
+					//TODO: Aca debería checkear si ya termine de escuchar al host. En ese caso el cliente debe dejar el host.
+//					if (hostData.content == null) {
+//						hostData.userChannel.close();
+//						hostData.serverChannel.close();
+//						return;
+//					}
+
+					hostData.hostKey.interestOps(NONE);
+					hostData.userChannel.register(hostData.key.selector(), SelectionKey.OP_WRITE, hostData);
+				} catch (CancelledKeyException e) {
+					System.out.println("Key was closed");
+					e.printStackTrace();
+				} catch (IOException e) {
+					System.out.println("Error reading connection");
+					e.printStackTrace();
+				}
+			}
+		},
+		SENDINGTOCLIENT {
+			public void attend(ClientData clientData) {
+
+			}
+		},
+		SENDINGRESPONSE {
+			public void attend(KeyData data) {
+				try {
+					if (!data.key.isWritable()) {
+						throw new IllegalStateException("WAS TRYING TO WRITE A NON WRITABLE KEY");
+					}
+
+					ServerHandler.handleWrite(
+							data.content,
+							data.userChannel,
+							MessageType.RESPONSE,
+							data.buffer);
 
 //                    System.out.println("SENDING RESPONSE:\n" + new String(data.buffer.array()));
 
-                    data.key.cancel();
-                    data.userChannel.close();
-                    data.serverChannel.close();
-                    data.state = CLOSING;
-                } catch (CancelledKeyException e) {
-                    System.out.println("Key was closed");
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    System.out.println("Error reading connection");
-                    e.printStackTrace();
-                }
-            }
-        },
-        CLOSING;
-        public void attend(KeyData data) {}
+					data.key.cancel();
+					data.userChannel.close();
+					data.serverChannel.close();
+					data.state = CLOSING;
+				} catch (CancelledKeyException e) {
+					System.out.println("Key was closed");
+					e.printStackTrace();
+				} catch (IOException e) {
+					System.out.println("Error reading connection");
+					e.printStackTrace();
+				}
+			}
+		},
+		CLOSING;
 
-        MessageType connectionState() {
-            switch (this) {
-                case LISTENINGREQUEST:
-                case SENDINGREQUEST:
-                case CONNECTING:
-                    return MessageType.REQUEST;
-                case LISTENINGRESPONSE:
-                case SENDINGRESPONSE:
-                    return MessageType.RESPONSE;
-                default:
-                    return null;
-            }
-        }
-    }
+		public void attend(ConnectionData data) {
+		}
 
-    public void start() {
+		MessageType connectionState() {
+			switch (this) {
+				case LISTENINGREQUEST:
+				case SENDINGTOHOST:
+				case CONNECTING:
+					return MessageType.REQUEST;
+				case SENDINGTOCLIENT:
+				case SENDINGRESPONSE:
+					return MessageType.RESPONSE;
+				default:
+					return null;
+			}
+		}
+	}
 
-        Selector selector = null;
-        //region INITIALIZE
-        try {
-            selector = Selector.open();
+	public void start() {
 
-            ServerSocketChannel serverSocket = ServerSocketChannel.open();
-            serverSocket.bind(new InetSocketAddress(5050));
-            serverSocket.configureBlocking(false);
-            serverSocket.register(selector, SelectionKey.OP_ACCEPT);
-        } catch (IOException e) {
-            System.out.println("Error opening listener socket.");
-            e.printStackTrace();
-            return;
-        }
-        //endregion
+		Selector selector = null;
+		//region INITIALIZE
+		try {
+			selector = Selector.open();
 
-        ServerHandler serverHandler = new ServerHandler(BUFSIZE);
-        while (true) {
-            //region SELECTING
-            try {
-                if (selector.select(TIMEOUT) == 0) {
-                    System.err.println("Timeout");
-                }
+			ServerSocketChannel serverSocket = ServerSocketChannel.open();
+			serverSocket.bind(new InetSocketAddress(5050));
+			serverSocket.configureBlocking(false);
+			serverSocket.register(selector, SelectionKey.OP_ACCEPT);
+		} catch (IOException e) {
+			System.out.println("Error opening listener socket.");
+			e.printStackTrace();
+			return;
+		}
+		//endregion
 
-                //region Logging
-                    System.err.println("--------------------------------------------------");
-                    System.err.println(selector.keys().size() + " keys in the selector");
-                    selector.keys().forEach(
-                            (k)-> {
-                                KeyData data = (KeyData) k.attachment();
-                                if(data != null) {
-                                    System.err.println("Key id:" + data.Id);
-                                    System.err.println("Key state:" + data.state.name());
-                                    if(data.content!=null)
-                                    System.err.println("Key request:" + data.content.host);
+		ServerHandler serverHandler = new ServerHandler(BUFSIZE);
+		while (true) {
+			//region SELECTING
+			try {
+				if (selector.select(TIMEOUT) == 0) {
+					System.err.println("Timeout");
+				}
 
-                                } else {
-                                    System.err.println("Key not identified yet");
-                                }
+				//region Logging
+				System.err.println("--------------------------------------------------");
+				System.err.println(selector.keys().size() + " keys in the selector");
+				selector.keys().forEach(
+						(k) -> {
+							ConnectionData data = (ConnectionData) k.attachment();
+							if (data != null) {
+								System.err.println("Key id:" + data.Id);
+								System.err.println("Key state:" + data.state.name());
+								if (((ClientData) data.content) != null)
+									System.err.println("Key request:" + data.content.host);
 
-                                if(k.interestOps() == SelectionKey.OP_READ) {
-                                    System.err.println("---- Read");
-                                }
+							} else {
+								System.err.println("Key not identified yet");
+							}
 
-                                if(k.interestOps() == SelectionKey.OP_ACCEPT) {
-                                    System.err.println("---- Accept");
-                                }
+							if (k.interestOps() == SelectionKey.OP_READ) {
+								System.err.println("---- Read");
+							}
 
-                                if(k.interestOps() == SelectionKey.OP_WRITE) {
-                                    System.err.println("---- Write");
-                                }
+							if (k.interestOps() == SelectionKey.OP_ACCEPT) {
+								System.err.println("---- Accept");
+							}
 
-                                if(k.interestOps() == SelectionKey.OP_CONNECT) {
-                                    System.err.println("---- Connect");
-                                }
+							if (k.interestOps() == SelectionKey.OP_WRITE) {
+								System.err.println("---- Write");
+							}
 
-                                System.err.println("");
-                            }
-                    );
+							if (k.interestOps() == SelectionKey.OP_CONNECT) {
+								System.err.println("---- Connect");
+							}
 
-                //endregion
+							System.err.println("");
+						}
+				);
 
-            } catch (IOException e) {
-                System.out.println("Error in selector.");
-            }
+				//endregion
 
-            Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-            while (it.hasNext()) {
-                SelectionKey key = it.next();
-                it.remove();
+			} catch (IOException e) {
+				System.out.println("Error in selector.");
+			}
 
-                KeyData data;
-                if(key.isValid()) {
-                    if (key.isAcceptable()) {
-                        data = new KeyData();
-                        data.key = key;
-                        data.state = State.CONNECTING;
-                        data.Id = new Random().nextInt();
-                    } else {
-                        data = (KeyData) key.attachment();
-                    }
+			Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+			while (it.hasNext()) {
+				SelectionKey key = it.next();
+				it.remove();
 
-                    System.out.println(data.state);
-                    data.key = key;
-                    data.state.attend(data);
+				ConnectionData data;
+				if (key.isValid()) {
+					if (key.isAcceptable()) {
+						data = handleAccept(key);
+					} else {
+						data = (ConnectionData) key.attachment();
+					}
 
-                }
+					System.out.println(data.state);
+					data.state.attend(data);
 
-            }
-        }
-    }
+				}
 
+			}
+		}
+	}
+
+	private ClientData handleAccept(SelectionKey serverKey) {
+		ClientData data = new ClientData(BUFSIZE);
+		try {
+			data.clientChannel = ((ServerSocketChannel) serverKey.channel()).accept();
+			data.clientChannel.configureBlocking(false);
+			data.state = State.LISTENINGREQUEST;
+			data.clientChannel.register(serverKey.selector(), SelectionKey.OP_READ, data);
+		} catch (CancelledKeyException e) {
+			System.err.println("Key was closed");
+			e.printStackTrace();
+		} catch (IOException e) {
+			System.err.println("Error accepting connection");
+			e.printStackTrace();
+		}
+
+		return data;
+	}
 }
