@@ -75,14 +75,8 @@ public enum ChannelState {
             try {
                 int readBytes = read(data, data.user, data.server);
 
-                Integer port = data.content.port;
-                String host = data.content.host;
-
-                if (port == null || host == null) {
-                    host = "localhost";
-                    port = 7070;
-                }
-
+                Integer port = data.content.getPort();
+                String host = data.content.getHost();
 
                     if(data.server.state == uninitialized) {
                     if (port != null && host != null) {
@@ -98,6 +92,8 @@ public enum ChannelState {
                             data.server.channel.register(data.key.selector(), SelectionKey.OP_CONNECT, data.getPair());
 
                         }
+                    } else if(data.user.state == done) {
+                        throw new RuntimeException("NO PORT");
                     }
                 }
 
@@ -209,6 +205,7 @@ public enum ChannelState {
 
             if(writtenBytes <= 0) {
                 // TODO fixme
+                to.state = done;
                 return 1;
                 // throw new IllegalStateException("COUlD NOT WRITE");
             }

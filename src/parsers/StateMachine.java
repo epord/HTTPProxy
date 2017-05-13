@@ -17,6 +17,7 @@ public class StateMachine {
 
     public int read;
     public ByteBuffer bytes;
+    public int parsedIndex;
 
     //EveryState must know what is in here
     public Object stateData;
@@ -24,6 +25,7 @@ public class StateMachine {
     public StateMachine(ByteBuffer buffer) {
         state = MainState.firstLine;
         bytes = buffer;
+        parsedIndex = 0;
         read = 0;
     }
 }

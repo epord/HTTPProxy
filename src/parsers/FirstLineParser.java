@@ -2,11 +2,8 @@ package parsers;
 
 import protos.MethodType;
 import protos.RequestContent;
-import sun.applet.Main;
 
-import javax.swing.plaf.nimbus.State;
-
-import static com.sun.org.apache.xalan.internal.xsltc.compiler.sym.error;
+import java.net.URI;
 
 /**
  * Created by juanfra on 03/05/17.
@@ -37,10 +34,23 @@ public class FirstLineParser {
         }
         stateData.firstLineState = nextState;
 
-        switch (nextState) {
+        if(nextState == FirstLineState.nexState) {
+            switch (prevState) {
+                case method:
+                    stateData.firstLineState = FirstLineState.URI; break;
+                case URI:
+                    stateData.firstLineState = FirstLineState.version; break;
+                case version:
+                    stateData.firstLineState = FirstLineState.RN; break;
+                case RN:
+                    stateData.firstLineState = FirstLineState.done; break;
+            }
+        }
+
+        switch (stateData.firstLineState) {
             case errorState:
                 return MainState.errorState;
-            case nextState:
+            case done:
                 machine.stateData = null;
                 return MainState.headers;
             default:
@@ -87,7 +97,7 @@ public class FirstLineParser {
                 } else {
                     if (c == ' ') {
                         if (content.method.isFinished(data.index)) {
-                            return URI;
+                            return nexState;
                         } else {
                             return setError(machine, MainError.UnsupportedMethod);
                         }
@@ -120,7 +130,7 @@ public class FirstLineParser {
                 byte c = machine.bytes.get();
                 if (c == ' ') {
                     content.uri = data.buffer.toString();
-                    return version;
+                    return nexState;
                 } else if (MainParser.isUri(c)) {
                     data.buffer.append(Character.toLowerCase((char) c));
                     return URI;
@@ -158,7 +168,7 @@ public class FirstLineParser {
                         return setError(machine, MainError.InvalidVersion);
                     } else {
                         content.version = RequestContent.HTTPVersion.version(v);
-                        return RN;
+                        return nexState;
                     }
                 }
             }
@@ -181,7 +191,7 @@ public class FirstLineParser {
 
                 if (data.recent_R) {
                     if (c == '\n') {
-                        return nextState;
+                        return done;
                     } else {
                         return setError(machine, MainError.UnknownExpression);
                     }
@@ -196,7 +206,8 @@ public class FirstLineParser {
 
             }
         },
-        nextState,
+        nexState,
+        done,
         errorState;
 
         public FirstLineState transition(RequestContent requestContent) {

@@ -43,7 +43,7 @@ public class TCPSocketServer2 {
                 if (selector.select(TIMEOUT) == 0) {
                     System.err.println("Timeout");
                 }
-                boolean logging = false;
+                boolean logging = true;
                 //region Logging
                     if(logging) {
                         System.err.println("--------------------------------------------------");
@@ -56,7 +56,7 @@ public class TCPSocketServer2 {
                                         System.err.println("Key Userstate:" + data.user.state);
                                         System.err.println("Key Serverstate:" + data.server.state);
                                         if (data.content != null)
-                                            System.err.println("Key request:" + data.content.host);
+                                            System.err.println("Key request:" + data.content.getHost());
 
                                     } else {
                                         System.err.println("Key not identified yet");

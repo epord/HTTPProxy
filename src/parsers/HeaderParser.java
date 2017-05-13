@@ -2,9 +2,6 @@ package parsers;
 
 import protos.RequestContent;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-
 /**
  * Created by juanfra on 03/05/17.
  */
@@ -39,7 +36,7 @@ public class HeaderParser {
         stateData.headerState = nextState;
 
         switch (nextState) {
-            case nextState:
+            case done:
                 machine.stateData = null;
                 return MainState.body;
             case errorState:
@@ -84,7 +81,7 @@ public class HeaderParser {
                 if (data.inNewLine) {
                     if (c == '\n') {
                         if (data.buffer.length() == 0) {
-                            return nextState;
+                            return done;
                         } else {
                             data.inNewLine = false;
                             return header;
@@ -172,7 +169,7 @@ public class HeaderParser {
                 return setError(machine, MainError.InvalidHeaderContent);
             }
         },
-        nextState,
+        done,
         errorState;
 
         public HeaderState transition(RequestContent requestContent) {

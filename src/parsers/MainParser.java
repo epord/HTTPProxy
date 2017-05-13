@@ -45,9 +45,11 @@ public class MainParser {
             content.machine = new StateMachine(buffer);
         }
         StateMachine machine = content.machine;
+        machine.bytes.position(machine.parsedIndex);
 
         while (machine.state != MainState.body && machine.error == null) {
             if (machine.bytes.hasRemaining()) {
+                System.out.println((char)machine.bytes.get(machine.bytes.position()));
                 machine.state.transition(content);
                 machine.read++;
             } else if (machine.state != MainState.body) {
@@ -63,6 +65,7 @@ public class MainParser {
             content.isComplete = true;
         }
 
+        machine.parsedIndex = machine.bytes.position();
     }
 
     private void printBuffer(byte [] buffer){

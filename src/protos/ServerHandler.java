@@ -31,20 +31,21 @@ public class ServerHandler {
         if (bytesRead <=0 ) { // Did the other end close?
             return bytesRead;
         } else  {
-            // start parsing from the mark
-            buff.reset();
+            // start parsing from parsedIndex
+            buff.flip();
             processRequest(data);
-            // set mark where the position is now
-            buff.mark();
 
-            //TODO
+            // Keep position at the end and ready to keep writing
+            buff.limit(buff.capacity());
 
+            //TODO better way than useing an error
             if(data.content.machine.error == MainError.IncompleteData) {
                 data.content.machine.error = null;
                 data.content.isComplete = false;
             } else {
                 data.content.isComplete = true;
             }
+
             return bytesRead;
         }
     }
@@ -64,16 +65,14 @@ public class ServerHandler {
                 buff.compact();
 
                 //Set mark for parsed data
-                int pos = buff.position();
-                buff.position(buff.limit());
-                buff.mark();
-                buff.position(pos);
+                data.content.machine.parsedIndex = buff.position();
+                buff.limit(buff.capacity());
 
             } else {
 
                 //buffer is now empty
                 buff.clear();
-                buff.mark();
+                data.content.machine.parsedIndex = 0;
             }
 
             return writtenBytes;
