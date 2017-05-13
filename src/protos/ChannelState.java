@@ -78,9 +78,9 @@ public enum ChannelState {
                 Integer port = data.content.port;
                 String host = data.content.host;
 
-                if (port != null || host != null) {
-                    host = "lanacion.com";
-                    port = 80;
+                if (port == null || host == null) {
+                    host = "localhost";
+                    port = 7070;
                 }
 
 
@@ -101,7 +101,7 @@ public enum ChannelState {
                     }
                 }
 
-                if(data.user.state == done) {
+                if(data.user.state == done  && !data.content.isComplete) {
                     data.user.state = waiting;
                 }
 
@@ -128,13 +128,16 @@ public enum ChannelState {
         private int read(KeyData data,ChannelData from,ChannelData to) throws IOException {
             if(!data.key.isReadable()) throw new IllegalStateException("Key is not readable");
 
-            int originalPos = data.bufferData.buff.position();
+            int readBytes = ServerHandler.handleRead(data);
 
-            data.content = ServerHandler.handleRead(data);
+            if(readBytes<=0) {
+                //TODO fixme
+//                throw new IllegalStateException("Read 0 bytes");
+                data.content.isComplete = true;
+                from.state = done;
+                return 1;
 
-            int readBytes = data.bufferData.buff.position() - originalPos;
-
-            if(readBytes<=0) throw new IllegalStateException("Read 0 bytes");
+            }
             if(data.content == null) throw new IllegalStateException("Content is null");
 
             MainError error = data.content.machine.error;
@@ -170,6 +173,7 @@ public enum ChannelState {
                 if(data.server.state == done) {
                     data.user.state = done;
                 } else if(data.server.state == waiting || data.server.state == reading){
+                    data.user.state = waiting;
                     data.server.state = reading;
                     data.server.channel.register(data.key.selector(),SelectionKey.OP_READ,data.getPair());
                 } else {
@@ -185,13 +189,12 @@ public enum ChannelState {
         public void serverAttend(KeyData data) {
             try {
                 write(data, data.user, data.server);
-                if(data.user.state == done) {
+                if (data.user.state == done && data.server.state == done) {
+                    data.user.state = waiting;
                     data.server.state = reading;
                     data.server.channel.register(data.key.selector(),SelectionKey.OP_READ,data);
-                } else {
+                } else if( data.server.state == done) {
                     data.server.state = waiting;
-                    data.user.state = reading;
-                    data.user.channel.register(data.key.selector(),SelectionKey.OP_READ,data.getPair());
                 }
             }catch (IOException e){
                 System.err.println(" --- Error when reading user request \n");
@@ -204,7 +207,11 @@ public enum ChannelState {
 
             int writtenBytes = ServerHandler.handleWrite(data);
 
-            if(writtenBytes <= 0) throw new IllegalStateException("COUlD NOT WRITE");
+            if(writtenBytes <= 0) {
+                // TODO fixme
+                return 1;
+                // throw new IllegalStateException("COUlD NOT WRITE");
+            }
 
             MainError error = data.content.machine.error;
 
@@ -218,6 +225,11 @@ public enum ChannelState {
                 to.channel.register(data.key.selector(),SelectionKey.OP_WRITE,data);
             } else {
                 to.state = done;
+            }
+
+            if(from.state == waiting) {
+                from.state = reading;
+                from.channel.register(data.key.selector(),SelectionKey.OP_READ,data.getPair());
             }
 
             return writtenBytes;

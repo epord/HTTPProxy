@@ -15,7 +15,7 @@ import java.util.Random;
 public class TCPSocketServer2 {
 
     private static final int TIMEOUT = 2000;
-    private static final int BUFSIZE = 25; //8 * 1024; // 8KB;
+    private static final int BUFSIZE = 8 * 1024; // 8KB;
     private static final int NONE = 0;
 
     public void start() {
@@ -43,43 +43,45 @@ public class TCPSocketServer2 {
                 if (selector.select(TIMEOUT) == 0) {
                     System.err.println("Timeout");
                 }
-
+                boolean logging = false;
                 //region Logging
-                    System.err.println("--------------------------------------------------");
-                    System.err.println(selector.keys().size() + " keys in the selector");
-                    selector.keys().forEach(
-                            (k)-> {
-                                KeyData data = (KeyData) k.attachment();
-                                if(data != null) {
-                                    System.err.println("Key id:" + data.Id);
-                                    System.err.println("Key Userstate:" + data.user.state);
-                                    System.err.println("Key Serverstate:" + data.server.state);
-                                    if(data.content!=null)
-                                    System.err.println("Key request:" + data.content.host);
+                    if(logging) {
+                        System.err.println("--------------------------------------------------");
+                        System.err.println(selector.keys().size() + " keys in the selector");
+                        selector.keys().forEach(
+                                (k) -> {
+                                    KeyData data = (KeyData) k.attachment();
+                                    if (data != null) {
+                                        System.err.println("Key id:" + data.Id);
+                                        System.err.println("Key Userstate:" + data.user.state);
+                                        System.err.println("Key Serverstate:" + data.server.state);
+                                        if (data.content != null)
+                                            System.err.println("Key request:" + data.content.host);
 
-                                } else {
-                                    System.err.println("Key not identified yet");
+                                    } else {
+                                        System.err.println("Key not identified yet");
+                                    }
+
+                                    if (k.interestOps() == SelectionKey.OP_READ) {
+                                        System.err.println("---- Read");
+                                    }
+
+                                    if (k.interestOps() == SelectionKey.OP_ACCEPT) {
+                                        System.err.println("---- Accept");
+                                    }
+
+                                    if (k.interestOps() == SelectionKey.OP_WRITE) {
+                                        System.err.println("---- Write");
+                                    }
+
+                                    if (k.interestOps() == SelectionKey.OP_CONNECT) {
+                                        System.err.println("---- Connect");
+                                    }
+
+                                    System.err.println("");
                                 }
-
-                                if(k.interestOps() == SelectionKey.OP_READ) {
-                                    System.err.println("---- Read");
-                                }
-
-                                if(k.interestOps() == SelectionKey.OP_ACCEPT) {
-                                    System.err.println("---- Accept");
-                                }
-
-                                if(k.interestOps() == SelectionKey.OP_WRITE) {
-                                    System.err.println("---- Write");
-                                }
-
-                                if(k.interestOps() == SelectionKey.OP_CONNECT) {
-                                    System.err.println("---- Connect");
-                                }
-
-                                System.err.println("");
-                            }
-                    );
+                        );
+                    }
 
                 //endregion
 
@@ -99,10 +101,10 @@ public class TCPSocketServer2 {
                         data = KeyData.userKeyData(BUFSIZE);
                     } else {
                         data = (KeyData) key.attachment();
+                        key.interestOps(NONE);
                     }
 
                     String from = data.user.state.toString() + " , " + data.server.state;
-                    key.interestOps(NONE);
                     data.key = key;
                     if(data.isUser) {
                         data.user.state.userAttend(data);

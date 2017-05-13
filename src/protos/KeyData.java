@@ -25,6 +25,7 @@ public class KeyData {
         KeyData userKeyData = new KeyData();
         userKeyData.user = new ChannelData(null,ChannelState.uninitialized);
         userKeyData.server = new ChannelData(null,ChannelState.uninitialized);
+        userKeyData.content = new RequestContent();
 
         userKeyData.bufferData = new BufferData(bufferSize);
 
@@ -49,6 +50,7 @@ public class KeyData {
 
         serverKeyData.isUser = !k1.isUser;
         serverKeyData.Id = -k1.Id;
+        serverKeyData.pair = k1;
 
         return serverKeyData;
     }

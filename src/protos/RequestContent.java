@@ -31,7 +31,9 @@ public class RequestContent {
         }
     }
 
-    public RequestContent(){}
+    public RequestContent(){
+        this.headers = new HashMap<>();
+    }
 
     public RequestContent(MethodType method, String host, Integer port, ByteBuffer body) {
         this.method = method;

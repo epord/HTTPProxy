@@ -40,28 +40,29 @@ public class MainParser {
         return isCLT[(int)c&0xFF];
     }
 
-    public RequestContent parseRequest(ByteBuffer buffer, RequestContent content) {
-        if(content.machine==null) {
+    public void parseRequest(ByteBuffer buffer, RequestContent content) {
+        if (content.machine == null) {
             content.machine = new StateMachine(buffer);
         }
         StateMachine machine = content.machine;
 
-        while(machine.state!=MainState.body && machine.error == null) {
-            if(machine.bytes.hasRemaining()) {
+        while (machine.state != MainState.body && machine.error == null) {
+            if (machine.bytes.hasRemaining()) {
                 machine.state.transition(content);
-                machine.read ++;
-            } else if (machine.state != MainState.body){
+                machine.read++;
+            } else if (machine.state != MainState.body) {
                 machine.error = MainError.IncompleteData;
             }
         }
 
-        if(machine.error != null) {
-            System.out.println("ERROR ------------- at character" + machine.read);
+        if (machine.error != null) {
+            System.out.println("\nERROR ------------- at character" + machine.read + "ErrorType: " + machine.error);
             printBuffer(machine.bytes.array());
-            System.out.println("END OF ERROR -------------");
+            System.out.println("END OF ERROR -------------\n");
+        } else {
+            content.isComplete = true;
         }
 
-        return content;
     }
 
     private void printBuffer(byte [] buffer){
@@ -72,13 +73,14 @@ public class MainParser {
         System.out.println(str.toString());
     }
 
-    public RequestContent parseResponse(ByteBuffer buffer, RequestContent content) {
+    public void parseResponse(ByteBuffer buffer, RequestContent content) {
         buffer.position(buffer.limit());
         if(content.machine==null) {
             content.machine = new StateMachine(buffer);
         }
-        content.isComplete = true;
-        return content;
+        content.machine.error = MainError.IncompleteData;
+        content.isComplete = false;
+        printBuffer(content.machine.bytes.array());
     }
 
 //        int i = 0;

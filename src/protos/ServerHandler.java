@@ -22,34 +22,35 @@ public class ServerHandler {
     }
 
 
-    public static RequestContent handleRead(KeyData data) throws IOException {
+    public static int handleRead(KeyData data) throws IOException {
         SocketChannel socket = data.isUser ? data.user.channel: data.server.channel;
         socket.configureBlocking(false);
         ByteBuffer buff = data.bufferData.buff;
 
         int bytesRead = socket.read(buff);
         if (bytesRead <=0 ) { // Did the other end close?
-            return null;
+            return bytesRead;
         } else  {
             // start parsing from the mark
             buff.reset();
-            RequestContent ans = processRequest(data);
+            processRequest(data);
             // set mark where the position is now
             buff.mark();
 
             //TODO
 
-            if(ans.machine.error == MainError.IncompleteData) {
-                ans.machine.error = null;
-                ans.isComplete = false;
+            if(data.content.machine.error == MainError.IncompleteData) {
+                data.content.machine.error = null;
+                data.content.isComplete = false;
             } else {
-                ans.isComplete = true;
+                data.content.isComplete = true;
             }
-            return ans;
+            return bytesRead;
         }
     }
 
     public static int handleWrite(KeyData data) throws IOException {
+
         SocketChannel socket = data.isUser ? data.user.channel: data.server.channel;
         socket.configureBlocking(false);
         ByteBuffer buff = data.bufferData.buff;
@@ -81,9 +82,10 @@ public class ServerHandler {
         }
     }
 
-    private static RequestContent processRequest(KeyData data) {
-        return data.isUser ?
-                mainParser.parseRequest(data.bufferData.buff,data.content) :
+    private static void processRequest(KeyData data) {
+        if (data.isUser)
+                mainParser.parseRequest(data.bufferData.buff,data.content);
+        else
                 mainParser.parseResponse(data.bufferData.buff,data.content);
     }
 }
