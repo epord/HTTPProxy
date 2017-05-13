@@ -1,11 +1,6 @@
 package parsers;
 
-import protos.MethodType;
-import protos.RequestContent;
-
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Created by juanfra on 03/05/17.
@@ -25,7 +20,6 @@ public class StateMachine {
     public StateMachine(ByteBuffer buffer) {
         state = MainState.firstLine;
         bytes = buffer;
-        parsedIndex = 0;
         read = 0;
     }
 }

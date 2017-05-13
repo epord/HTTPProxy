@@ -92,8 +92,6 @@ public enum ChannelState {
                             data.server.channel.register(data.key.selector(), SelectionKey.OP_CONNECT, data.getPair());
 
                         }
-                    } else if(data.user.state == done) {
-                        throw new RuntimeException("NO PORT");
                     }
                 }
 
@@ -146,7 +144,7 @@ public enum ChannelState {
 
             if(isComplete) {
                 from.state = done;
-            } else if(!data.bufferData.buff.hasRemaining()) {
+            } else if(!data.buffer.hasRemaining()) {
                 from.state = waiting;
             } else {
                 from.state = reading;
@@ -217,7 +215,7 @@ public enum ChannelState {
                 return -1;
             }
 
-            if(data.bufferData.buff.position() != 0) {
+            if(data.buffer.position() != 0) {
                 to.state = writing;
                 to.channel.register(data.key.selector(),SelectionKey.OP_WRITE,data);
             } else {

@@ -8,7 +8,7 @@ import java.io.IOException;
 public class ProxyMain {
 
     public static void main(String[] args) throws IOException{
-        TCPSocketServer2 server = new TCPSocketServer2();
+        TCPSocketServer server = new TCPSocketServer();
         server.start();
     }
 }

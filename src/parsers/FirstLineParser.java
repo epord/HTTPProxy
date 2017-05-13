@@ -3,8 +3,6 @@ package parsers;
 import protos.MethodType;
 import protos.RequestContent;
 
-import java.net.URI;
-
 /**
  * Created by juanfra on 03/05/17.
  */

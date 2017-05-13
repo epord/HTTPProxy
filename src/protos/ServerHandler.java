@@ -6,7 +6,6 @@ import parsers.MainParser;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.security.Key;
 
 /**
  * Created by epord on 20/04/17.
@@ -25,7 +24,7 @@ public class ServerHandler {
     public static int handleRead(KeyData data) throws IOException {
         SocketChannel socket = data.isUser ? data.user.channel: data.server.channel;
         socket.configureBlocking(false);
-        ByteBuffer buff = data.bufferData.buff;
+        ByteBuffer buff = data.buffer;
 
         int bytesRead = socket.read(buff);
         if (bytesRead <=0 ) { // Did the other end close?
@@ -38,7 +37,7 @@ public class ServerHandler {
             // Keep position at the end and ready to keep writing
             buff.limit(buff.capacity());
 
-            //TODO better way than useing an error
+            //TODO better way than using an error
             if(data.content.machine.error == MainError.IncompleteData) {
                 data.content.machine.error = null;
                 data.content.isComplete = false;
@@ -54,7 +53,7 @@ public class ServerHandler {
 
         SocketChannel socket = data.isUser ? data.user.channel: data.server.channel;
         socket.configureBlocking(false);
-        ByteBuffer buff = data.bufferData.buff;
+        ByteBuffer buff = data.buffer;
         
         if (socket.isOpen()) {
             buff.flip();
@@ -83,8 +82,8 @@ public class ServerHandler {
 
     private static void processRequest(KeyData data) {
         if (data.isUser)
-                mainParser.parseRequest(data.bufferData.buff,data.content);
+                mainParser.parseRequest(data.buffer,data.content);
         else
-                mainParser.parseResponse(data.bufferData.buff,data.content);
+                mainParser.parseResponse(data.buffer,data.content);
     }
 }
